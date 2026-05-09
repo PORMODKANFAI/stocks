@@ -3635,48 +3635,53 @@ window.google = {
   script: {
     run: new Proxy({}, {
       get(_, action) {
+        // เมื่อเรียก google.script.run.someAction
+        // return runner object ที่มีทั้ง withSuccessHandler, withFailureHandler
+        // และสามารถถูกเรียกเป็น function ได้
+
         let _successCb = null;
-        let _failCb    = null;
+        let _failCb = null;
+
+        function execute(payload) {
+          callAPI(action, payload || {})
+            .then(data => { if (_successCb) _successCb(data); })
+            .catch(err => {
+              if (_failCb) _failCb(err);
+              else console.error('[API Error]', action, err);
+            });
+        }
 
         const runner = {
-          withSuccessHandler(cb) { _successCb = cb; return runner; },
-          withFailureHandler(cb) { _failCb    = cb; return runner; },
-
-          // method call: google.script.run.withSuccessHandler(cb).getPersonnelData()
-          // Proxy trap ต้องรับ args ของ function นั้น
-        };
-
-        // Return function ที่เรียก API
-        return new Proxy(runner, {
-          apply(target, thisArg, args) {
-            // ถูกเรียกเป็น function: google.script.run.getPersonnelData()
-            callAPI(action, args[0] || {})
-              .then(data => _successCb && _successCb(data))
-              .catch(err => _failCb
-                ? _failCb(err)
-                : console.error(action, err)
-              );
+          withSuccessHandler(cb) {
+            _successCb = cb;
             return runner;
           },
+          withFailureHandler(cb) {
+            _failCb = cb;
+            return runner;
+          }
+        };
+
+        // เพิ่ม method ชื่อเดียวกับ action และทุก method อื่นๆ ที่อาจถูกเรียก
+        // ผ่าน Proxy
+        return new Proxy(runner, {
           get(target, prop) {
-            if (prop in runner) return runner[prop];
-            // runner.getPersonnelData() — method chaining
-            return (...args) => {
-              callAPI(action, args[0] || {})
-                .then(data => _successCb && _successCb(data))
-                .catch(err => _failCb
-                  ? _failCb(err)
-                  : console.error(action, err)
-                );
+            if (prop in target) return target[prop];
+            // ถ้าเรียก method ที่ไม่มีใน runner = เรียก action อื่น หรือ execute
+            return (payload) => {
+              execute(payload);
               return runner;
             };
+          },
+          apply(target, thisArg, args) {
+            execute(args[0]);
+            return runner;
           }
         });
       }
     })
   }
 };
-
 /**
  * แปลง positional arguments → params object
  * ให้ตรงกับที่ Apps Script ต้องการ
