@@ -25,77 +25,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <!-- App config (ต้องตั้งค่า API_URL) -->
   <!-- <script src="config.js"></script> -->
- <script>
-  // 1. Config
-  window.APP_CONFIG = {
-    API_URL: 'https://script.google.com/macros/s/AKfycbyeZqNIUSxDB-Oc5ukYJ5p4s4TtML48KIegdiwVo5zjnC9CRkC4m8Ofa2f28bYEouWh/exec',
-    APP_NAME: 'ระบบเบิกจ่ายวัสดุ',
-    VERSION:  '1.0',
-  };
-  </script>
-
-  <script>
-  // 2. API layer — ต้องโหลดก่อน DOMContentLoaded
-  function getAPIUrl() {
-    return localStorage.getItem('gas_api_url') || window.APP_CONFIG?.API_URL || '';
-  }
-
-  async function callAPI(action, payload = {}) {
-    const url = getAPIUrl();
-    if (!url) throw new Error('ยังไม่ได้ตั้งค่า API URL');
-    const res = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify({ action, payload })
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  }
-
-  async function checkAPIHealth() {
-    const t0 = Date.now();
-    try {
-      const url = getAPIUrl();
-      if (!url) return { ok: false, error: 'ยังไม่ได้ตั้งค่า API URL' };
-      const res  = await fetch(`${url}?action=ping`, { method: 'GET' });
-      const data = await res.json();
-      return { ok: true, latency: Date.now() - t0, data };
-    } catch (e) {
-      return { ok: false, error: e.message };
-    }
-  }
-
-  // google.script.run emulator
-  window.google = {
-    script: {
-      run: new Proxy({}, {
-        get(_, action) {
-          let _successCb = null;
-          let _failCb    = null;
-
-          function execute(p) {
-            callAPI(action, p || {})
-              .then(data => { if (_successCb) _successCb(data); })
-              .catch(err  => { if (_failCb) _failCb(err); else console.error('[API]', action, err); });
-          }
-
-          const runner = {
-            withSuccessHandler(cb) { _successCb = cb; return runner; },
-            withFailureHandler(cb) { _failCb    = cb; return runner; }
-          };
-
-          return new Proxy(runner, {
-            get(target, prop) {
-              if (prop in target) return target[prop];
-              return (p) => { execute(p); return runner; };
-            },
-            apply(_, __, args) { execute(args[0]); return runner; }
-          });
-        }
-      })
-    }
-  };
-  </script>
+ 
 
   <style>
     /* ===== CSS เดิมทั้งหมด คัดลอกมาจาก Apps Script ===== */
@@ -1827,7 +1757,7 @@
    ต้องอยู่บรรทัดแรกของ script ก้อนนี้
 ═══════════════════════════════════════════ */
 window.APP_CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbxb8agBzVDjaPYZ3P6IVCQ9RTq5oa3ElrT95ScMnfW6N1MiqqOC32r2aP31wyh7Nfvk/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbwesU-E_ELMLgN5X1QWmJ86AssIQdlxbvUPuS2n6VEj1lvfqeuXsAFLzjLimPHRC-w/exec',
   APP_NAME: 'ระบบเบิกจ่ายวัสดุ',
   VERSION:  '1.0',
 };
