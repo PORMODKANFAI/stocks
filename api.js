@@ -1,125 +1,97 @@
 <script>
-  /**
- * api.js
- * แทนที่ google.script.run ด้วย fetch() ไปยัง Apps Script Web App
- * ใช้รูปแบบเดิมให้มากที่สุดเพื่อลดการแก้ไข app.js
- */
+ /* ════════════════════════════════════════
+   api.js — REST API client for GitHub Pages
+   เรียก Google Apps Script Web App ผ่าน fetch()
+════════════════════════════════════════ */
 
-const API_URL = window.APP_CONFIG?.API_URL || '';
+// ดึง API URL จาก config.js หรือ localStorage
+function getAPIUrl() {
+  return localStorage.getItem('gas_api_url')
+      || window.APP_CONFIG?.API_URL
+      || '';
+}
 
-/**
- * เรียก Apps Script function ผ่าน HTTP POST
- * คืนค่า Promise<any>
- */
-async function callAPI(action, params = {}) {
-  if (!API_URL) throw new Error('กรุณาตั้งค่า API_URL ใน config.js');
-  
-  const response = await fetch(API_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'text/plain' }, //
-    /**
- * api.js
- * แทนที่ google.script.run ด้วย fetch() ไปยัง Apps Script Web App
- */
-
-const API_URL = window.APP_CONFIG?.API_URL || '';
-
-/**
- * เรียก Apps Script function ผ่าน HTTP POST
- * หมายเหตุ: ต้องใช้ Content-Type: text/plain เพราะ Apps Script
- * ไม่รองรับ application/json สำหรับ CORS preflight-free request
- */
-async function callAPI(action, params = {}) {
-  if (!API_URL) throw new Error('กรุณาตั้งค่า API_URL ใน config.js');
-
+// ── Health Check ──
+async function checkAPIHealth() {
+  const t0 = Date.now();
   try {
-    const response = await fetch(API_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' }, // ← ไม่ trigger CORS preflight
-      body:    JSON.stringify({ action, params }),
-      redirect: 'follow'  // Apps Script redirect เสมอ
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new Error('API ตอบกลับไม่ใช่ JSON: ' + text.substring(0, 100));
-    }
-  } catch (err) {
-    // Network error / CORS
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      throw new Error('ไม่สามารถเชื่อมต่อ API ได้ — ตรวจสอบ API_URL และ deployment settings');
-    }
-    throw err;
+    const url = getAPIUrl();
+    if (!url) return { ok: false, error: 'ยังไม่ได้ตั้งค่า API URL' };
+    const res = await fetch(`${url}?action=ping`, { method: 'GET' });
+    const data = await res.json();
+    return { ok: true, latency: Date.now() - t0, data };
+  } catch (e) {
+    return { ok: false, error: e.message };
   }
 }
 
-/**
- * google — object จำลอง google.script.run
- * ใช้แทนได้เลยโดยไม่ต้องแก้ app.js มาก
- *
- * ตัวอย่างการใช้:
- *   google.script.run
- *     .withSuccessHandler(d => { ... })
- *     .withFailureHandler(e => { ... })
- *     .getStockData();
- */
-const google = {
+// ── Core API caller ──
+async function callAPI(action, payload = {}) {
+  const url = getAPIUrl();
+  if (!url) throw new Error('ยังไม่ได้ตั้งค่า API URL');
+
+  try {
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain' }, // ต้องใช้ text/plain กับ GAS
+      body:    JSON.stringify({ action, ...payload })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error(`[API] ${action} failed:`, e);
+    throw e;
+  }
+}
+
+// ── สร้าง google.script.run emulator ──
+// ให้ code เดิมทำงานได้โดยไม่ต้องแก้ทุกที่
+window.google = {
   script: {
     run: new Proxy({}, {
-      get(_, fnName) {
-        // คืน builder object ที่ chain ได้
-        return _makeRunner(fnName);
+      get(_, action) {
+        let _successCb = null;
+        let _failCb    = null;
+
+        const runner = {
+          withSuccessHandler(cb) { _successCb = cb; return runner; },
+          withFailureHandler(cb) { _failCb    = cb; return runner; },
+
+          // method call: google.script.run.withSuccessHandler(cb).getPersonnelData()
+          // Proxy trap ต้องรับ args ของ function นั้น
+        };
+
+        // Return function ที่เรียก API
+        return new Proxy(runner, {
+          apply(target, thisArg, args) {
+            // ถูกเรียกเป็น function: google.script.run.getPersonnelData()
+            callAPI(action, args[0] || {})
+              .then(data => _successCb && _successCb(data))
+              .catch(err => _failCb
+                ? _failCb(err)
+                : console.error(action, err)
+              );
+            return runner;
+          },
+          get(target, prop) {
+            if (prop in runner) return runner[prop];
+            // runner.getPersonnelData() — method chaining
+            return (...args) => {
+              callAPI(action, args[0] || {})
+                .then(data => _successCb && _successCb(data))
+                .catch(err => _failCb
+                  ? _failCb(err)
+                  : console.error(action, err)
+                );
+              return runner;
+            };
+          }
+        });
       }
     })
   }
 };
-
-function _makeRunner(fnName) {
-  const runner = {
-    _onSuccess: null,
-    _onFailure: null,
-    _params:    [],
-
-    withSuccessHandler(fn) {
-      this._onSuccess = fn;
-      return this;
-    },
-    withFailureHandler(fn) {
-      this._onFailure = fn;
-      return this;
-    }
-  };
-
-  // Proxy เพื่อดักจับ .functionName(...args) ที่ท้าย chain
-  return new Proxy(runner, {
-    get(target, prop) {
-      // ถ้า prop มีอยู่ใน runner ให้คืนค่าปกติ (withSuccessHandler, withFailureHandler)
-      if (prop in target) return target[prop].bind(target);
-
-      // ถ้าไม่มี → เป็นชื่อ function ที่ต้องการเรียก
-      return (...args) => {
-        // แปลง args → params object ตาม action ที่รู้จัก
-        const params = _argsToParams(prop, args);
-
-        callAPI(prop, params)
-          .then(result => {
-            if (target._onSuccess) target._onSuccess(result);
-          })
-          .catch(err => {
-            console.error(`[API] ${prop} failed:`, err);
-            if (target._onFailure) target._onFailure({ message: err.message });
-            else console.error('Unhandled API error:', err);
-          });
-      };
-    }
-  });
-}
 
 /**
  * แปลง positional arguments → params object
