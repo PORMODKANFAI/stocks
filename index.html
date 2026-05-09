@@ -1757,7 +1757,7 @@
    ต้องอยู่บรรทัดแรกของ script ก้อนนี้
 ═══════════════════════════════════════════ */
 window.APP_CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbyvuknv8HwmwZwjIkEGQQdbjg5FnFOzR6bpxVj3AT1qDj4r66K0FBrF6dPKM3buSvmO/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbzK6TEDfsEUGNtO8fIUtsqrhEVAAJUaJxE2_CtZkZhhkR-_NiKmKgwS5tS54zf4Zxh4/exec',
   APP_NAME: 'ระบบเบิกจ่ายวัสดุ',
   VERSION:  '1.0',
 };
@@ -1920,8 +1920,8 @@ function updateDateDisplay() {
 
 /* ── LOGIN ── */
 function loadPersonnelForLogin() {
-  google.script.run
-    .withSuccessHandler(data => {
+  callAPI('getPersonnelData')
+    .then(data => {
       PERSONNEL_DATA = data || [];
       const sel = document.getElementById('login-user');
       sel.innerHTML = '<option value="">-- เลือกชื่อผู้ใช้ --</option>';
@@ -1933,42 +1933,40 @@ function loadPersonnelForLogin() {
         sel.appendChild(opt);
       });
     })
-    .withFailureHandler(e => {
+    .catch(e => {
       console.error('loadPersonnel error:', e);
-      document.getElementById('login-user').innerHTML = '<option value="">⚠️ โหลดข้อมูลไม่ได้ — ตรวจสอบ API URL</option>';
-      showAPIBanner('error', 'ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบ API URL ใน Setup');
-    })
-    .getPersonnelData();
+      document.getElementById('login-user').innerHTML =
+        '<option value="">⚠️ โหลดข้อมูลไม่ได้ — ตรวจสอบ API URL</option>';
+      showAPIBanner('error', 'ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบ API URL');
+    });
 }
 
 async function doLogin() {
   const uid = document.getElementById('login-user').value;
   const pwd = document.getElementById('login-pwd').value;
-  const errEl = document.getElementById('login-err');
+  const errEl  = document.getElementById('login-err');
   const errMsg = document.getElementById('login-err-msg');
   if (!uid) { errMsg.textContent = 'กรุณาเลือกชื่อผู้ใช้'; errEl.classList.add('show'); return; }
-  if (!pwd) { errMsg.textContent = 'กรุณาระบุรหัสผ่าน'; errEl.classList.add('show'); return; }
+  if (!pwd) { errMsg.textContent = 'กรุณาระบุรหัสผ่าน';    errEl.classList.add('show'); return; }
   errEl.classList.remove('show');
   showLoading('กำลังตรวจสอบ...');
-  google.script.run
-    .withSuccessHandler(result => {
-      hideLoading();
-      if (result?.success) {
-        CURRENT_USER = result.user;
-        sessionStorage.setItem('current_user', JSON.stringify(CURRENT_USER));
-        document.getElementById('login-pwd').value = '';
-        afterLogin();
-      } else {
-        errMsg.textContent = result?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
-        errEl.classList.add('show');
-      }
-    })
-    .withFailureHandler(e => {
-      hideLoading();
-      errMsg.textContent = 'เชื่อมต่อ API ไม่ได้: ' + (e.message || 'Unknown error');
+  try {
+    const result = await callAPI('verifyLogin', { id: uid, pwd });
+    hideLoading();
+    if (result?.success) {
+      CURRENT_USER = result.user;
+      sessionStorage.setItem('current_user', JSON.stringify(CURRENT_USER));
+      document.getElementById('login-pwd').value = '';
+      afterLogin();
+    } else {
+      errMsg.textContent = result?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
       errEl.classList.add('show');
-    })
-    .verifyLogin({ id: uid, pwd });
+    }
+  } catch(e) {
+    hideLoading();
+    errMsg.textContent = 'เชื่อมต่อ API ไม่ได้: ' + (e.message || 'Unknown error');
+    errEl.classList.add('show');
+  }
 }
 
 function afterLogin() {
