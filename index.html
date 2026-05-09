@@ -3617,12 +3617,11 @@ async function callAPI(action, payload = {}) {
   try {
     const res = await fetch(url, {
       method:  'POST',
-      headers: { 'Content-Type': 'text/plain' }, // ต้องใช้ text/plain กับ GAS
-      body:    JSON.stringify({ action, ...payload })
+      headers: { 'Content-Type': 'text/plain' },
+      body:    JSON.stringify({ action, payload })  // ← เปลี่ยนตรงนี้
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    return data;
+    return await res.json();
   } catch (e) {
     console.error(`[API] ${action} failed:`, e);
     throw e;
