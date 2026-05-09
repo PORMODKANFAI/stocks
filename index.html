@@ -1757,7 +1757,7 @@
    ต้องอยู่บรรทัดแรกของ script ก้อนนี้
 ═══════════════════════════════════════════ */
 window.APP_CONFIG = {
-  API_URL: 'https://script.google.com/macros/s/AKfycbw8sLTSzJdH6haGlA8nfC_6I9jic0c3tWRcg88QAvsO2svGUTOEjwi6ZBCdrQqL5cg/exec',
+  API_URL: 'https://script.google.com/macros/s/AKfycbyvuknv8HwmwZwjIkEGQQdbjg5FnFOzR6bpxVj3AT1qDj4r66K0FBrF6dPKM3buSvmO/exec',
   APP_NAME: 'ระบบเบิกจ่ายวัสดุ',
   VERSION:  '1.0',
 };
@@ -1791,28 +1791,34 @@ async function checkAPIHealth() {
   }
 }
 
+function _makeRunner(action) {
+  let _successCb = null;
+  let _failCb    = null;
+
+  function execute(p) {
+    callAPI(action, p || {})
+      .then(data => { if (_successCb) _successCb(data); })
+      .catch(err  => { if (_failCb) _failCb(err); else console.error('[API]', action, err); });
+  }
+
+  const runner = {
+    withSuccessHandler: function(cb) { _successCb = cb; return runner; },
+    withFailureHandler: function(cb) { _failCb    = cb; return runner; }
+  };
+
+  return new Proxy(runner, {
+    get(target, prop) {
+      if (prop in target) return target[prop];
+      return function(p) { execute(p); return runner; };
+    }
+  });
+}
+
 window.google = {
   script: {
     run: new Proxy({}, {
       get(_, action) {
-        let _successCb = null;
-        let _failCb    = null;
-        function execute(p) {
-          callAPI(action, p || {})
-            .then(data => { if (_successCb) _successCb(data); })
-            .catch(err  => { if (_failCb) _failCb(err); else console.error('[API]', action, err); });
-        }
-        const runner = {
-          withSuccessHandler(cb) { _successCb = cb; return runner; },
-          withFailureHandler(cb) { _failCb    = cb; return runner; }
-        };
-        return new Proxy(runner, {
-          get(target, prop) {
-            if (prop in target) return target[prop];
-            return (p) => { execute(p); return runner; };
-          },
-          apply(_, __, args) { execute(args[0]); return runner; }
-        });
+        return _makeRunner(action);
       }
     })
   }
