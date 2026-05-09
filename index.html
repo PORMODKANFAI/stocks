@@ -1,0 +1,3576 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1a2744">
+  <title>ระบบเบิกจ่ายวัสดุ</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700
+    &family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <link  href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- QR Scanner — html5-qrcode v2.3.8 (เสถียรที่สุด) -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Barcode generator -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+  <!-- App config (ต้องตั้งค่า API_URL) -->
+  <script src="config.js"></script>
+
+  <style>
+    /* ===== CSS เดิมทั้งหมด คัดลอกมาจาก Apps Script ===== */
+    :root {
+      --navy:#1a2744;--navy-2:#243459;--navy-3:#2e4070;
+      --teal:#0ea5a0;--teal-2:#12bfb9;--teal-light:rgba(14,165,160,.12);
+      --blue:#3b82f6;--green:#10b981;--amber:#f59e0b;--red:#ef4444;--purple:#7c3aed;
+      --ink:#0f172a;--ink-2:#334155;--ink-3:#64748b;--ink-4:#94a3b8;
+      --bg:#f1f5f9;--card:#ffffff;--border:#e2e8f0;
+      --sidebar-w:250px;--topbar-h:60px;--nav-h:60px;
+      --r:10px;--r-sm:6px;
+      --sh:0 1px 3px rgba(0,0,0,.06),0 4px 16px rgba(0,0,0,.05);
+      --sh-lg:0 8px 32px rgba(0,0,0,.12);
+      --safe-b:env(safe-area-inset-bottom,0px);
+      --font-body:'Sarabun',sans-serif;--font-head:'IBM Plex Sans Thai',sans-serif;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    html{scroll-behavior:smooth;}
+    body{font-family:var(--font-body);background:var(--bg);color:var(--ink);
+      min-height:100dvh;overflow-x:hidden;display:flex;}
+
+    /* ── API STATUS BANNER ── */
+    #api-status-banner{
+      position:fixed;top:0;left:0;right:0;z-index:9999;
+      padding:10px 16px;font-size:13px;font-weight:600;
+      display:none;align-items:center;justify-content:center;gap:8px;
+    }
+    #api-status-banner.error{
+      display:flex;background:#fef2f2;color:#dc2626;border-bottom:2px solid #fca5a5;
+    }
+    #api-status-banner.warn{
+      display:flex;background:#fffbeb;color:#d97706;border-bottom:2px solid #fde68a;
+    }
+    #api-status-banner.ok{
+      display:flex;background:#f0fdf4;color:#059669;border-bottom:2px solid #a7f3d0;
+    }
+
+    /* ── SETUP WIZARD ── */
+    #setup-wizard{
+      position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1a2744);
+      display:none;flex-direction:column;align-items:center;justify-content:center;
+      z-index:9000;padding:20px;
+    }
+    #setup-wizard.show{display:flex;}
+    .setup-box{
+      background:rgba(255,255,255,.06);backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,.12);border-radius:18px;
+      padding:36px 32px;width:100%;max-width:420px;
+      box-shadow:0 24px 60px rgba(0,0,0,.5);
+    }
+    .setup-box h2{
+      font-family:var(--font-head);font-size:20px;font-weight:700;
+      color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:10px;
+    }
+    .setup-box p{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:24px;}
+    .setup-field{margin-bottom:16px;}
+    .setup-field label{
+      font-size:11px;font-weight:700;color:rgba(255,255,255,.45);
+      letter-spacing:.5px;text-transform:uppercase;display:block;margin-bottom:6px;
+    }
+    .setup-field input{
+      width:100%;padding:11px 14px;background:rgba(255,255,255,.08);
+      border:1.5px solid rgba(255,255,255,.12);border-radius:var(--r-sm);
+      color:#fff;font-family:var(--font-body);font-size:13.5px;outline:none;
+      transition:border-color .18s;min-height:44px;
+    }
+    .setup-field input:focus{border-color:var(--teal);}
+    .setup-field input::placeholder{color:rgba(255,255,255,.25);}
+    .btn-setup{
+      width:100%;padding:13px;background:var(--teal);color:#fff;border:none;
+      border-radius:var(--r-sm);font-family:var(--font-head);font-size:15px;
+      font-weight:700;cursor:pointer;margin-top:8px;
+      display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;
+    }
+    .btn-setup:hover{background:var(--teal-2);}
+    .setup-note{
+      margin-top:16px;padding:12px 14px;background:rgba(14,165,160,.1);
+      border:1px solid rgba(14,165,160,.2);border-radius:8px;
+      font-size:12px;color:rgba(255,255,255,.5);line-height:1.6;
+    }
+    .setup-note a{color:var(--teal);text-decoration:none;}
+
+    /* ── LOGIN ── */
+    #login-screen{
+      position:fixed;inset:0;
+      background:linear-gradient(135deg,var(--navy) 0%,var(--navy-2) 60%,#1e3a8a 100%);
+      display:flex;align-items:center;justify-content:center;z-index:8000;padding:20px;
+    }
+    .login-box{
+      background:rgba(255,255,255,.05);backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,.12);border-radius:18px;
+      padding:38px 34px;width:100%;max-width:380px;
+      box-shadow:0 24px 60px rgba(0,0,0,.4);
+    }
+    .login-logo{text-align:center;margin-bottom:28px;}
+    .logo-mark-lg{
+      width:58px;height:58px;background:var(--teal);border-radius:14px;
+      display:inline-flex;align-items:center;justify-content:center;
+      margin-bottom:12px;box-shadow:0 8px 24px rgba(14,165,160,.4);
+    }
+    .logo-mark-lg i{font-size:30px;color:#fff;}
+    .login-logo h1{font-family:var(--font-head);font-size:18px;font-weight:700;color:#fff;}
+    .login-logo p{font-size:12px;color:rgba(255,255,255,.4);margin-top:3px;}
+    .login-field{margin-bottom:16px;}
+    .login-field label{
+      font-size:11.5px;font-weight:700;color:rgba(255,255,255,.5);
+      letter-spacing:.5px;text-transform:uppercase;display:block;margin-bottom:6px;
+    }
+    .login-input-wrap{position:relative;}
+    .login-input-wrap i.fi{
+      position:absolute;left:12px;top:50%;transform:translateY(-50%);
+      color:rgba(255,255,255,.3);font-size:17px;
+    }
+    .login-field input{
+      width:100%;padding:11px 14px 11px 40px;background:rgba(255,255,255,.08);
+      border:1.5px solid rgba(255,255,255,.12);border-radius:var(--r-sm);
+      color:#fff;font-family:var(--font-body);font-size:14px;outline:none;
+      transition:border-color .18s;min-height:44px;
+    }
+    .login-field input::placeholder{color:rgba(255,255,255,.25);}
+    .login-field input:focus{border-color:var(--teal);background:rgba(255,255,255,.11);}
+    .login-field select{
+      width:100%;padding:11px 14px 11px 40px;background:rgba(255,255,255,.08);
+      border:1.5px solid rgba(255,255,255,.12);border-radius:var(--r-sm);
+      color:#fff;font-family:var(--font-body);font-size:14px;outline:none;
+      min-height:44px;cursor:pointer;
+    }
+    .login-field select option{background:var(--navy-2);color:#fff;}
+    .login-field select:focus{border-color:var(--teal);}
+    .btn-login{
+      width:100%;padding:13px;background:var(--teal);color:#fff;border:none;
+      border-radius:var(--r-sm);font-family:var(--font-head);font-size:15px;
+      font-weight:700;cursor:pointer;margin-top:8px;
+      display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;
+    }
+    .btn-login:hover{background:var(--teal-2);box-shadow:0 6px 20px rgba(14,165,160,.4);}
+    .login-err{
+      background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);
+      color:#fca5a5;font-size:12.5px;padding:10px 14px;border-radius:6px;
+      margin-top:12px;display:none;align-items:center;gap:7px;
+    }
+    .login-err.show{display:flex;}
+    .login-footer{text-align:center;font-size:11px;color:rgba(255,255,255,.2);margin-top:24px;}
+
+    /* ── SIDEBAR ── */
+    .sidebar{
+      width:var(--sidebar-w);
+      background:linear-gradient(175deg,#050c1a 0%,#0f1e3c 20%,#1a2f6e 50%,#1d4ed8 82%,#2563eb 100%);
+      position:fixed;height:100dvh;top:0;left:0;
+      display:flex;flex-direction:column;z-index:200;
+      box-shadow:4px 0 32px rgba(29,78,216,.35);
+      transition:transform .28s cubic-bezier(.4,0,.2,1);transform:translateX(-100%);
+    }
+    .sidebar-logo{
+      padding:0 18px;height:var(--topbar-h);border-bottom:1px solid rgba(255,255,255,.1);
+      display:flex;align-items:center;gap:11px;flex-shrink:0;background:rgba(255,255,255,.04);
+    }
+    .logo-mark{
+      width:36px;height:36px;background:rgba(255,255,255,.15);
+      border:1px solid rgba(255,255,255,.2);border-radius:8px;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .logo-mark i{font-size:20px;color:#fff;}
+    .logo-text h1{font-family:var(--font-head);font-size:13.5px;font-weight:700;color:#fff;}
+    .logo-text p{font-size:10.5px;color:rgba(255,255,255,.45);margin-top:1px;}
+    .sidebar-nav{flex:1;padding:10px 0;overflow-y:auto;}
+    .sidebar-nav::-webkit-scrollbar{width:4px;}
+    .sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:4px;}
+    .nav-group-lbl{
+      font-size:9.5px;font-weight:700;letter-spacing:1.4px;
+      color:rgba(255,255,255,.35);text-transform:uppercase;padding:18px 18px 5px;
+    }
+    .nav-item{
+      display:flex;align-items:center;gap:10px;padding:9px 18px 9px 16px;
+      cursor:pointer;color:rgba(255,255,255,.6);font-size:13.5px;
+      border-left:3px solid transparent;transition:all .18s;user-select:none;
+    }
+    .nav-item i{font-size:17px;width:20px;text-align:center;flex-shrink:0;}
+    .nav-item:hover{background:rgba(255,255,255,.1);color:#fff;border-left-color:rgba(255,255,255,.4);}
+    .nav-item.active{
+      background:rgba(255,255,255,.15);color:#fff;border-left-color:#fff;
+      font-weight:600;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);
+    }
+    .sidebar-foot{
+      padding:12px 18px;border-top:1px solid rgba(255,255,255,.1);
+      font-size:10.5px;color:rgba(255,255,255,.35);
+      display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.15);
+    }
+
+    /* ── OVERLAY ── */
+    .overlay{
+      display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+      z-index:199;backdrop-filter:blur(2px);opacity:0;
+      transition:opacity .28s;pointer-events:none;
+    }
+    .overlay.show{display:block;opacity:1;pointer-events:all;}
+    .sidebar.open{transform:translateX(0)!important;}
+
+    /* ── MAIN ── */
+    .main{margin-left:0;flex:1;display:flex;flex-direction:column;min-height:100dvh;}
+
+    /* ── TOPBAR ── */
+    .topbar{
+      height:var(--topbar-h);background:var(--card);border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;
+      padding:0 20px 0 18px;position:sticky;top:0;z-index:100;
+      box-shadow:0 1px 4px rgba(0,0,0,.05);gap:10px;
+    }
+    .topbar-left{display:flex;align-items:center;gap:12px;}
+    .hamburger{
+      display:flex;width:36px;height:36px;background:none;
+      border:1.5px solid var(--border);cursor:pointer;border-radius:var(--r-sm);
+      align-items:center;justify-content:center;color:var(--ink-3);
+      transition:all .18s;flex-shrink:0;
+    }
+    .hamburger:hover{background:var(--bg);color:var(--ink);}
+    .hamburger i{font-size:20px;}
+    .topbar-title{
+      font-family:var(--font-head);font-size:16px;font-weight:700;color:var(--ink);
+      background-color:rgba(124,58,237,.1);border-radius:10px;
+      padding:5px 10px;display:inline-block;
+    }
+    .topbar-right{display:flex;align-items:center;gap:8px;}
+    .topbar-date{
+      font-size:12px;color:var(--ink-3);background:var(--bg);
+      padding:6px 12px;border-radius:var(--r-sm);border:1px solid var(--border);
+      white-space:nowrap;display:flex;align-items:center;gap:5px;
+    }
+    .topbar-date i{color:var(--teal);}
+    .topbar-btn{
+      width:36px;height:36px;background:var(--bg);border:1.5px solid var(--border);
+      border-radius:var(--r-sm);cursor:pointer;display:flex;align-items:center;
+      justify-content:center;color:var(--ink-3);transition:all .18s;flex-shrink:0;
+    }
+    .topbar-btn:hover{background:var(--teal-light);border-color:var(--teal);color:var(--teal);}
+    .topbar-btn i{font-size:18px;}
+    .admin-badge{
+      display:flex;align-items:center;gap:7px;padding:5px 12px 5px 8px;
+      background:var(--bg);border:1.5px solid var(--border);border-radius:20px;
+      font-size:12px;color:var(--ink-2);font-weight:600;cursor:pointer;
+    }
+    .admin-avatar{
+      width:24px;height:24px;background:var(--navy);border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .admin-avatar i{font-size:14px;color:rgba(255,255,255,.8);}
+    .user-role-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:700;}
+    .role-admin{background:#dbeafe;color:#1d4ed8;}
+    .role-user{background:#d1fae5;color:#065f46;}
+
+    /* ── CONTENT ── */
+    .content{padding:22px;flex:1;padding-bottom:calc(22px + var(--safe-b));}
+
+    /* ── BOTTOM NAV ── */
+    .bottom-nav{
+      display:none;position:fixed;bottom:0;left:0;right:0;
+      height:calc(var(--nav-h) + var(--safe-b));background:var(--card);
+      border-top:1px solid var(--border);box-shadow:0 -4px 20px rgba(0,0,0,.08);
+      z-index:150;padding-bottom:var(--safe-b);
+    }
+    .bn-inner{display:flex;height:var(--nav-h);}
+    .bn-item{
+      flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      gap:3px;cursor:pointer;color:var(--ink-4);font-size:10px;font-weight:600;
+      transition:color .18s;padding:6px 2px;border:none;background:none;position:relative;
+      font-family:var(--font-body);
+    }
+    .bn-item.active{color:var(--teal);}
+    .bn-item.active::before{
+      content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+      width:28px;height:3px;background:var(--teal);border-radius:0 0 3px 3px;
+    }
+    .bn-icon i{font-size:22px;}
+    .more-menu{
+      display:none;position:fixed;bottom:calc(var(--nav-h) + var(--safe-b));
+      left:0;right:0;background:var(--card);border-top:1px solid var(--border);
+      box-shadow:0 -8px 32px rgba(0,0,0,.12);z-index:149;
+      border-radius:16px 16px 0 0;padding:6px 0 4px;
+      animation:slideUp .22s ease;
+    }
+    .more-menu.show{display:block;}
+    @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .more-item{
+      display:flex;align-items:center;gap:12px;padding:13px 20px;
+      cursor:pointer;font-size:14.5px;color:var(--ink-2);transition:background .15s;
+    }
+    .more-item i{font-size:20px;width:24px;text-align:center;color:var(--ink-3);}
+    .more-item:hover,.more-item.active{background:var(--bg);color:var(--teal);}
+    .more-item:hover i,.more-item.active i{color:var(--teal);}
+
+    /* ── PAGES ── */
+    .page{display:none;}
+    .page.active{display:block;animation:fadeUp .25s ease;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── PAGE HEADER ── */
+    .page-header{
+      display:flex;align-items:flex-start;justify-content:space-between;
+      margin-bottom:20px;gap:12px;flex-wrap:wrap;
+    }
+    .page-header-left h2{
+      font-family:var(--font-head);font-size:19px;font-weight:700;color:var(--ink);
+      display:flex;align-items:center;gap:8px;
+    }
+    .page-header-left h2 i{color:var(--teal);font-size:22px;}
+    .page-header-left p{font-size:12.5px;color:var(--ink-3);margin-top:3px;}
+
+    /* ── STAT CARDS ── */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;}
+    .stat-card{
+      background:var(--card);border-radius:var(--r);padding:18px 16px;
+      border:1px solid var(--border);box-shadow:var(--sh);
+      display:flex;align-items:center;gap:14px;
+      transition:transform .2s,box-shadow .2s;position:relative;overflow:hidden;
+    }
+    .stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--r) var(--r) 0 0;}
+    .stat-card.c-blue::after{background:linear-gradient(90deg,#1d4ed8,#3b82f6);}
+    .stat-card.c-green::after{background:linear-gradient(90deg,#059669,#10b981);}
+    .stat-card.c-amber::after{background:linear-gradient(90deg,#d97706,#f59e0b);}
+    .stat-card.c-red::after{background:linear-gradient(90deg,#dc2626,#ef4444);}
+    .stat-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg);}
+    .stat-icon{
+      width:48px;height:48px;border-radius:10px;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .stat-icon i{font-size:24px;}
+    .stat-icon.c-blue{background:#eff6ff;}.stat-icon.c-blue i{color:var(--blue);}
+    .stat-icon.c-green{background:#f0fdf4;}.stat-icon.c-green i{color:var(--green);}
+    .stat-icon.c-amber{background:#fffbeb;}.stat-icon.c-amber i{color:var(--amber);}
+    .stat-icon.c-red{background:#fef2f2;}.stat-icon.c-red i{color:var(--red);}
+    .stat-val{font-family:var(--font-head);font-size:28px;font-weight:700;line-height:1;}
+    .stat-val.c-blue{color:var(--blue);}.stat-val.c-green{color:var(--green);}
+    .stat-val.c-amber{color:var(--amber);}.stat-val.c-red{color:var(--red);}
+    .stat-lbl{font-size:12px;color:var(--ink-3);margin-top:4px;font-weight:500;}
+
+    /* ── CARDS ── */
+    .card{
+      background:var(--card);border-radius:var(--r);border:1px solid var(--border);
+      box-shadow:var(--sh);overflow:hidden;margin-bottom:16px;
+    }
+    .card-header{
+      padding:14px 18px;border-bottom:1px solid var(--border);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+    }
+    .card-title{
+      font-family:var(--font-head);font-size:13.5px;font-weight:700;color:var(--ink);
+      display:flex;align-items:center;gap:7px;
+    }
+    .card-title i{color:var(--teal);font-size:17px;}
+    .card-body{padding:18px;}
+    .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+    .chart-container{position:relative;height:250px;}
+    .report-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;}
+
+    /* ── FILTER BAR ── */
+    .filter-bar{
+      display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;
+      background:var(--card);padding:12px 14px;border-radius:var(--r);
+      border:1px solid var(--border);box-shadow:var(--sh);
+    }
+
+    /* ── TABLE ── */
+    .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    table{width:100%;border-collapse:collapse;font-size:13px;}
+    thead tr{background:#f8fafc;border-bottom:2px solid var(--border);}
+    th{
+      padding:10px 14px;text-align:left;font-weight:700;color:var(--ink-3);
+      font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;
+    }
+      td{padding:11px 14px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+    tr:last-child td{border-bottom:none;}
+    tbody tr:hover{background:#f8fafc;}
+    .row-warn td{background:#fffbeb!important;}
+    .row-danger td{background:#fef2f2!important;}
+
+    /* ── BADGES ── */
+    .badge{
+      display:inline-flex;align-items:center;gap:4px;padding:3px 9px;
+      border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap;
+    }
+    .badge i{font-size:12px;}
+    .badge-ok{background:#f0fdf4;color:#059669;}
+    .badge-warn{background:#fffbeb;color:#d97706;}
+    .badge-danger{background:#fef2f2;color:#dc2626;}
+    .badge-blue{background:#eff6ff;color:#1d4ed8;}
+    .badge-teal{background:#ecfeff;color:#0e7490;}
+    .badge-navy{background:rgba(26,39,68,.08);color:var(--navy-2);}
+    .tag-unit{
+      background:#eff6ff;color:#1d4ed8;padding:2px 8px;border-radius:4px;
+      font-size:11px;font-weight:700;display:inline-block;
+    }
+    code.chip{
+      font-size:11px;background:#f1f5f9;padding:2px 7px;border-radius:4px;
+      font-family:'SFMono-Regular',monospace;color:var(--ink-2);border:1px solid var(--border);
+    }
+
+    /* ── BUTTONS ── */
+    .btn{
+      padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-body);
+      font-size:13.5px;font-weight:600;cursor:pointer;border:none;
+      display:inline-flex;align-items:center;gap:6px;
+      transition:all .18s;white-space:nowrap;-webkit-user-select:none;
+    }
+    .btn i{font-size:16px;}
+    .btn-primary{background:var(--navy);color:#fff;}
+    .btn-primary:hover{background:var(--navy-2);transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,39,68,.3);}
+    .btn-teal{background:var(--teal);color:#fff;}
+    .btn-teal:hover{background:var(--teal-2);transform:translateY(-1px);}
+    .btn-success{background:#059669;color:#fff;}
+    .btn-success:hover{background:var(--green);transform:translateY(-1px);}
+    .btn-danger{background:var(--red);color:#fff;}
+    .btn-danger:hover{background:#dc2626;}
+    .btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--ink-3);}
+    .btn-outline:hover{border-color:var(--teal);color:var(--teal);background:var(--teal-light);}
+    .btn-sm{padding:5px 12px;font-size:12px;border-radius:5px;}
+    .btn-lg{padding:11px 24px;font-size:14.5px;}
+    .btn-icon{width:34px;height:34px;padding:0;border-radius:var(--r-sm);display:inline-flex;align-items:center;justify-content:center;}
+    .btn-icon i{font-size:18px;}
+    .btn-scan{background:linear-gradient(135deg,#0ea5a0,#059669);color:#fff;border:none;}
+    .btn-scan:hover{opacity:.9;transform:translateY(-1px);box-shadow:0 4px 12px rgba(14,165,160,.4);}
+
+    /* ── FORMS ── */
+    .form-section{
+      background:var(--card);border-radius:var(--r);border:1px solid var(--border);
+      overflow:hidden;margin-bottom:18px;box-shadow:var(--sh);
+    }
+    .form-head{
+      background:var(--navy);padding:14px 20px;color:#fff;
+      font-family:var(--font-head);font-size:15px;font-weight:700;
+      display:flex;align-items:center;gap:9px;
+    }
+    .form-head i{font-size:19px;color:rgba(255,255,255,.7);}
+    .form-head.green{background:linear-gradient(135deg,#065f46,#059669);}
+    .form-body{padding:20px;}
+    .form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px;}
+    .form-group{display:flex;flex-direction:column;gap:5px;}
+    .form-group label{font-size:11.5px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.5px;}
+    .form-control{
+      padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);
+      font-family:var(--font-body);font-size:13.5px;color:var(--ink);background:var(--card);
+      transition:border-color .18s,box-shadow .18s;outline:none;width:100%;min-height:40px;
+    }
+    .form-control:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,165,160,.12);}
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+
+    /* ── ITEMS TABLE ── */
+    .items-tbl{width:100%;border-collapse:collapse;margin-bottom:12px;}
+    .items-tbl th{
+      background:#f8fafc;padding:8px 10px;font-size:10.5px;font-weight:700;
+      color:var(--ink-3);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--border);
+    }
+    .items-tbl td{padding:6px 5px;border-bottom:1px solid #f1f5f9;vertical-align:middle;}
+    .items-tbl select,.items-tbl input{
+      width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;
+      font-family:var(--font-body);font-size:12.5px;outline:none;
+      transition:border-color .18s;min-height:36px;background:#fff;color:var(--ink);
+    }
+    .items-tbl select:focus,.items-tbl input:focus{border-color:var(--teal);}
+    .item-cards{display:none;flex-direction:column;gap:10px;margin-bottom:14px;}
+    .item-card{background:var(--bg);border-radius:8px;border:1px solid var(--border);padding:14px;position:relative;}
+    .item-card-num{position:absolute;top:10px;right:12px;font-size:10.5px;color:var(--ink-4);font-weight:700;}
+    .item-card-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+
+    /* ── QR THUMBNAIL ── */
+    .row-qr-thumb{
+      width:40px;height:40px;border-radius:6px;border:1px solid var(--border);
+      cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;
+      background:#f8fafc;overflow:hidden;flex-shrink:0;
+    }
+    .row-qr-thumb:hover{border-color:var(--teal);box-shadow:0 2px 8px rgba(14,165,160,.2);transform:scale(1.05);}
+    .row-qr-thumb img{width:100%;height:100%;object-fit:cover;}
+    .row-qr-thumb.empty{color:var(--ink-4);font-size:18px;}
+    .qr-thumbnail{
+      width:50px;height:50px;border-radius:8px;border:1px solid var(--border);
+      cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;
+      background:#f8fafc;overflow:hidden;
+    }
+    .qr-thumbnail:hover{border-color:var(--teal);box-shadow:0 2px 8px rgba(14,165,160,.2);transform:scale(1.05);}
+    .qr-thumbnail img{width:100%;height:100%;object-fit:cover;}
+
+    /* ── SCAN OVERLAY ── */
+    #scan-overlay{
+      position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.95);
+      display:none;flex-direction:column;align-items:center;justify-content:flex-start;
+    }
+    #scan-overlay.show{display:flex;}
+    .scan-header{
+      width:100%;padding:14px 18px;
+      display:flex;align-items:center;justify-content:space-between;
+      border-bottom:1px solid rgba(255,255,255,.1);flex-shrink:0;
+    }
+    .scan-title{color:#fff;font-family:var(--font-head);font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;}
+    .scan-title i{color:var(--teal);font-size:20px;}
+    .scan-header-actions{display:flex;align-items:center;gap:8px;}
+
+    /* ★ ปุ่มสลับกล้อง */
+    .scan-switch-btn{
+      background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);
+      color:#fff;width:40px;height:40px;border-radius:10px;cursor:pointer;
+      display:none;align-items:center;justify-content:center;font-size:20px;
+      transition:all .18s;
+    }
+    .scan-switch-btn:hover{background:rgba(255,255,255,.2);}
+
+    /* ★ ปุ่มปิด */
+    .scan-close-btn{
+      background:var(--red);border:none;color:#fff;
+      width:44px;height:44px;border-radius:10px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      font-size:24px;transition:background .18s,transform .15s;flex-shrink:0;
+    }
+    .scan-close-btn:hover{background:#dc2626;transform:scale(1.08);}
+    .scan-close-btn:active{transform:scale(.95);}
+
+    .scan-body{
+      flex:1;width:100%;display:flex;flex-direction:column;
+      align-items:center;justify-content:center;
+      padding:16px;gap:14px;overflow-y:auto;
+    }
+    .scan-viewport{
+      position:relative;width:100%;max-width:420px;
+      border-radius:14px;overflow:hidden;background:#000;
+    }
+    #scan-qr-reader{width:100%;min-height:280px;}
+    #scan-qr-reader video{border-radius:12px!important;}
+
+    /* กรอบเล็ง */
+    .scan-aim{
+      position:absolute;inset:0;pointer-events:none;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .scan-aim-box{
+      width:220px;height:220px;position:relative;
+      border:2px solid rgba(14,165,160,.4);border-radius:12px;
+      box-shadow:0 0 0 9999px rgba(0,0,0,.35);
+    }
+    .scan-aim-corner{position:absolute;width:24px;height:24px;border-color:var(--teal);border-style:solid;}
+    .scan-aim-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px;border-radius:4px 0 0 0;}
+    .scan-aim-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0;border-radius:0 4px 0 0;}
+    .scan-aim-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px;border-radius:0 0 0 4px;}
+    .scan-aim-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0;border-radius:0 0 4px 0;}
+    .scan-laser{
+      position:absolute;left:6%;right:6%;top:0;height:2px;
+      background:linear-gradient(90deg,transparent,var(--teal),transparent);
+      animation:laserScan 2s ease-in-out infinite;border-radius:2px;opacity:.9;
+    }
+    @keyframes laserScan{0%{top:5%;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:95%;opacity:0}}
+
+    .scan-hint{color:rgba(255,255,255,.55);font-size:12.5px;text-align:center;max-width:340px;line-height:1.5;}
+    .scan-result-bar{
+      width:100%;max-width:420px;background:rgba(14,165,160,.15);
+      border:1px solid rgba(14,165,160,.4);border-radius:10px;
+      padding:12px 16px;display:none;align-items:center;gap:10px;
+      transition:all .2s;
+    }
+    .scan-result-bar.show{display:flex;}
+    .scan-result-icon{
+      width:36px;height:36px;background:var(--teal);border-radius:8px;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .scan-result-icon i{color:#fff;font-size:20px;}
+    .scan-result-name{flex:1;}
+    .scan-result-name strong{display:block;color:#fff;font-size:14px;}
+    .scan-result-name span{color:rgba(255,255,255,.6);font-size:12px;}
+    .scan-manual-bar{width:100%;max-width:420px;display:flex;gap:8px;align-items:center;}
+    .scan-manual-bar input{
+      flex:1;padding:10px 14px;background:rgba(255,255,255,.08);
+      border:1.5px solid rgba(255,255,255,.2);border-radius:8px;
+      color:#fff;font-family:var(--font-body);font-size:13px;outline:none;min-height:42px;
+    }
+    .scan-manual-bar input:focus{border-color:var(--teal);}
+    .scan-manual-bar input::placeholder{color:rgba(255,255,255,.3);}
+
+    /* ── SEARCH ── */
+    .search-box{position:relative;flex:1;min-width:160px;max-width:300px;}
+    .search-box input{
+      width:100%;padding:8px 12px 8px 36px;border:1.5px solid var(--border);
+      border-radius:var(--r-sm);font-family:var(--font-body);font-size:13px;
+      outline:none;transition:all .18s;min-height:38px;color:var(--ink);
+    }
+    .search-box input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,165,160,.1);}
+    .search-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-4);}
+    .search-icon i{font-size:16px;}
+
+    /* ── SECTION LABEL ── */
+    .section-lbl{
+      font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+      color:var(--ink-3);padding:0 0 8px;border-bottom:1.5px solid var(--border);
+      margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state{text-align:center;padding:36px 16px;color:var(--ink-3);}
+    .empty-state i{font-size:42px;opacity:.3;display:block;margin-bottom:10px;}
+    .empty-state p{font-size:13px;}
+
+    /* ── LOADING ── */
+    #loading{
+      position:fixed;inset:0;background:rgba(255,255,255,.82);display:none;
+      flex-direction:column;align-items:center;justify-content:center;
+      z-index:9998;gap:14px;backdrop-filter:blur(4px);
+    }
+    .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-lbl{font-size:13.5px;color:var(--ink-3);font-weight:600;}
+
+    /* ── MODAL ── */
+    .modal-wrap{
+      position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;
+      display:flex;align-items:flex-end;justify-content:center;
+      opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(3px);
+    }
+    .modal-wrap.open{opacity:1;pointer-events:all;}
+    .modal{
+      background:var(--card);border-radius:16px 16px 0 0;width:100%;max-width:520px;
+      padding:22px 20px calc(22px + var(--safe-b));max-height:92dvh;overflow-y:auto;
+      transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+    }
+    .modal-wrap.open .modal{transform:translateY(0);}
+    .modal-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 18px;}
+    .modal-title{font-family:var(--font-head);font-size:17px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+    .modal-title i{color:var(--teal);font-size:20px;}
+
+    /* ── PASSWORD MODAL ── */
+    .pwd-confirm-info{
+      background:var(--bg);border-radius:8px;padding:14px 16px;
+      margin-bottom:16px;font-size:13px;color:var(--ink-2);border:1px solid var(--border);
+    }
+    .pwd-confirm-info strong{color:var(--navy);font-family:var(--font-head);}
+    .pwd-confirm-info .item-list{margin-top:8px;display:flex;flex-direction:column;gap:4px;}
+    .pwd-confirm-info .item-row{display:flex;align-items:center;gap:6px;font-size:12.5px;}
+    .pwd-confirm-info .item-row i{color:var(--teal);font-size:14px;}
+
+    /* ── SETTINGS ── */
+    .setting-section{
+      background:var(--card);border-radius:var(--r);border:1px solid var(--border);
+      box-shadow:var(--sh);overflow:hidden;margin-bottom:18px;
+    }
+    .setting-head{
+      background:linear-gradient(135deg,#0d1117,#1a2744);padding:14px 20px;
+      color:#fff;font-family:var(--font-head);font-size:15px;font-weight:700;
+      display:flex;align-items:center;gap:9px;
+    }
+    .setting-head i{font-size:20px;}
+    .setting-body{padding:20px;}
+    .setting-row{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 0;border-bottom:1px solid var(--border);gap:16px;flex-wrap:wrap;
+    }
+    .setting-row:last-child{border-bottom:none;padding-bottom:0;}
+    .setting-info h4{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+    .setting-info h4 i{color:var(--teal);font-size:16px;}
+    .setting-info p{font-size:12px;color:var(--ink-3);max-width:360px;}
+    .toggle-switch{position:relative;width:46px;height:26px;flex-shrink:0;}
+    .toggle-switch input{opacity:0;width:0;height:0;}
+    .toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:26px;cursor:pointer;transition:.3s;}
+    .toggle-slider::before{
+      content:'';position:absolute;height:20px;width:20px;left:3px;bottom:3px;
+      background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.2);
+    }
+    .toggle-switch input:checked+.toggle-slider{background:var(--teal);}
+    .toggle-switch input:checked+.toggle-slider::before{transform:translateX(20px);}
+
+    /* ── CODE PREVIEW ── */
+    .item-code-preview{
+      background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1.5px solid var(--border);
+      border-radius:10px;padding:14px 16px;margin-top:10px;
+      display:none;flex-direction:column;align-items:center;gap:10px;
+    }
+    .item-code-preview.show{display:flex;}
+    .item-code-preview-tabs{display:flex;gap:6px;width:100%;}
+    .code-tab{
+      flex:1;padding:6px;border:1.5px solid var(--border);border-radius:6px;
+      background:#fff;font-family:var(--font-body);font-size:11.5px;font-weight:700;
+      cursor:pointer;color:var(--ink-3);text-align:center;transition:all .15s;
+    }
+    .code-tab.active{background:var(--navy);color:#fff;border-color:var(--navy);}
+    .code-display-area{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;}
+    .qr-preview-img{width:150px;height:150px;border-radius:8px;border:1px solid var(--border);object-fit:contain;background:#fff;}
+    .code-label-info{font-size:11px;color:var(--ink-3);text-align:center;font-weight:600;}
+
+    /* ── TOAST ── */
+    #toast-container{
+      position:fixed;top:68px;right:16px;z-index:99999;
+      display:flex;flex-direction:column;gap:8px;pointer-events:none;max-width:320px;
+    }
+    .n-toast{
+      display:flex;align-items:center;gap:10px;padding:11px 14px 11px 12px;
+      background:var(--navy);color:#fff;border-radius:10px;font-size:13px;font-weight:500;
+      font-family:var(--font-body);box-shadow:0 8px 28px rgba(0,0,0,.28);
+      pointer-events:all;position:relative;overflow:hidden;
+      animation:nToastIn .25s cubic-bezier(.4,0,.2,1) forwards;
+      min-width:200px;max-width:320px;
+    }
+    .n-toast.out{animation:nToastOut .22s ease forwards;}
+    @keyframes nToastIn{from{opacity:0;transform:translateX(110%)}to{opacity:1;transform:translateX(0)}}
+    @keyframes nToastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(110%)}}
+    .n-toast-icon{width:22px;height:22px;border-radius:50%;border:2px solid;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:12px;font-weight:700;}
+    .n-toast-msg{flex:1;line-height:1.4;}
+    .n-toast-bar{position:absolute;bottom:0;left:0;height:3px;border-radius:0 0 10px 10px;animation:nToastBar linear forwards;background:rgba(255,255,255,.35);}
+    @keyframes nToastBar{from{width:100%}to{width:0%}}
+    .n-toast-success{border-left:4px solid var(--teal);}
+    .n-toast-success .n-toast-icon{border-color:var(--teal);color:var(--teal);}
+    .n-toast-success .n-toast-bar{background:var(--teal);opacity:.5;}
+    .n-toast-error{border-left:4px solid var(--red);}
+    .n-toast-error .n-toast-icon{border-color:var(--red);color:var(--red);}
+    .n-toast-error .n-toast-bar{background:var(--red);opacity:.5;}
+    .n-toast-warning{border-left:4px solid var(--amber);}
+    .n-toast-warning .n-toast-icon{border-color:var(--amber);color:var(--amber);}
+    .n-toast-warning .n-toast-bar{background:var(--amber);opacity:.5;}
+    .n-toast-info{border-left:4px solid var(--blue);}
+    .n-toast-info .n-toast-icon{border-color:var(--blue);color:var(--blue);}
+    .n-toast-info .n-toast-bar{background:var(--blue);opacity:.5;}
+
+    /* ── UTILS ── */
+    .flex{display:flex;}.gap-2{gap:8px;}.gap-3{gap:12px;}
+    .justify-end{justify-content:flex-end;}.justify-between{justify-content:space-between;}
+    .items-center{align-items:center;}.flex-wrap{flex-wrap:wrap;}
+    .mt-4{margin-top:16px;}.mb-4{margin-bottom:16px;}.mt-2{margin-top:8px;}
+    .text-sm{font-size:11.5px;color:var(--ink-3);font-weight:600;}
+    .divider{height:1px;background:var(--border);margin:12px 0;}
+    .no-access{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--ink-3);gap:12px;}
+    .no-access i{font-size:52px;opacity:.3;}
+    .no-access p{font-size:14px;}
+
+    /* ── SWEETALERT2 ── */
+    .swal2-popup.swal-custom{font-family:var(--font-body)!important;border-radius:16px!important;padding:28px 28px 24px!important;box-shadow:0 24px 64px rgba(0,0,0,.18)!important;border:1px solid var(--border)!important;max-width:380px!important;}
+    .swal2-title{font-family:var(--font-head)!important;font-size:18px!important;font-weight:700!important;color:var(--ink)!important;}
+    .swal2-html-container{font-size:13.5px!important;color:var(--ink-3)!important;}
+    .swal2-confirm.swal-btn-confirm{background:var(--navy)!important;color:#fff!important;border-radius:8px!important;font-family:var(--font-body)!important;font-size:13.5px!important;font-weight:700!important;padding:10px 22px!important;border:none!important;box-shadow:none!important;}
+    .swal2-confirm.swal-btn-danger{background:var(--red)!important;color:#fff!important;border-radius:8px!important;font-family:var(--font-body)!important;font-size:13.5px!important;font-weight:700!important;padding:10px 22px!important;border:none!important;box-shadow:none!important;}
+    .swal2-confirm.swal-btn-teal{background:var(--teal)!important;color:#fff!important;border-radius:8px!important;font-family:var(--font-body)!important;font-size:13.5px!important;font-weight:700!important;padding:10px 22px!important;border:none!important;box-shadow:none!important;}
+    .swal2-cancel.swal-btn-cancel{background:var(--bg)!important;color:var(--ink-3)!important;border:1.5px solid var(--border)!important;border-radius:8px!important;font-family:var(--font-body)!important;font-size:13.5px!important;font-weight:600!important;padding:10px 20px!important;box-shadow:none!important;}
+    .swal2-input.swal-input{font-family:var(--font-body)!important;font-size:14px!important;border:1.5px solid var(--border)!important;border-radius:8px!important;padding:10px 14px!important;color:var(--ink)!important;box-shadow:none!important;margin:12px 0 0!important;width:100%!important;height:auto!important;}
+    .swal2-input.swal-input:focus{border-color:var(--teal)!important;box-shadow:0 0 0 3px rgba(14,165,160,.12)!important;}
+    .swal2-backdrop-show{background:rgba(15,23,42,.45)!important;backdrop-filter:blur(4px)!important;}
+
+    /* ── RESPONSIVE ── */
+
+        @media(min-width:1024px){
+      .sidebar{transform:translateX(0)!important;}
+      .main{margin-left:var(--sidebar-w)!important;}
+      .hamburger{display:none!important;}
+      .bottom-nav{display:none!important;}
+      .stats-grid{grid-template-columns:repeat(4,1fr);}
+      .chart-grid,.report-grid{grid-template-columns:1fr 1fr;}
+      .modal-wrap{align-items:center;}
+      .modal{border-radius:var(--r);transform:scale(.95);max-width:520px;padding:26px;}
+      .modal-wrap.open .modal{transform:scale(1);}
+      .modal-handle{display:none;}
+    }
+    @media(min-width:768px) and (max-width:1023px){
+      .sidebar{transform:translateX(0)!important;}
+      .main{margin-left:var(--sidebar-w)!important;}
+      .hamburger{display:none!important;}
+      .bottom-nav{display:none!important;}
+      .stats-grid{grid-template-columns:repeat(2,1fr);}
+      .chart-grid,.report-grid{grid-template-columns:1fr 1fr;}
+    }
+    @media(max-width:767px){
+      :root{--topbar-h:54px;}
+      .hamburger{display:flex!important;}
+      .sidebar{transform:translateX(-100%);}
+      .sidebar.open{transform:translateX(0)!important;}
+      .main{margin-left:0!important;}
+      .content{padding:12px;padding-bottom:calc(var(--nav-h) + 14px);}
+      .topbar-date,.admin-badge{display:none;}
+      .topbar{padding:0 12px;}
+      .topbar-title{font-size:14.5px;}
+      .bottom-nav{display:block!important;}
+      .stats-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+      .stat-card{padding:13px 12px;gap:10px;}
+      .stat-val{font-size:24px;}
+      .stat-icon{width:42px;height:42px;}
+      .stat-icon i{font-size:21px;}
+      .chart-grid,.report-grid{grid-template-columns:1fr;}
+      .chart-container{height:210px;}
+      .page-header{margin-bottom:12px;}
+      .page-header-left h2{font-size:16px;}
+      .filter-bar{padding:10px 12px;gap:8px;}
+      .search-box{max-width:100%;width:100%;}
+      .hide-mob{display:none!important;}
+      .items-tbl{display:none;}
+      .item-cards{display:flex;}
+      .form-body{padding:14px;}
+      .form-row{grid-template-columns:1fr;}
+      .card-body{padding:12px;}
+      .card-header{padding:12px 14px;}
+      #toast-container{top:60px;right:8px;left:8px;max-width:unset;}
+      .n-toast{max-width:100%;}
+      .scan-aim-box{width:180px;height:180px;}
+    }
+    @media(max-width:399px){
+      .stat-card{flex-direction:column;text-align:center;gap:6px;padding:12px 8px;}
+      .stat-icon{margin:0 auto;}
+      .stats-grid{gap:8px;}
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ══ SETUP WIZARD (แสดงครั้งแรกเมื่อยังไม่ได้ตั้งค่า API) ══ -->
+<div id="setup-wizard">
+  <div class="setup-box">
+    <h2><i class='bx bx-cog' style="color:var(--teal);"></i>ตั้งค่าเริ่มต้น</h2>
+    <p>กรุณาระบุ Google Apps Script Web App URL เพื่อเชื่อมต่อฐานข้อมูล</p>
+    <div class="setup-field">
+      <label>Apps Script Web App URL</label>
+      <input type="url" id="setup-api-url"
+        placeholder="https://script.google.com/macros/s/.../exec">
+    </div>
+    <button class="btn-setup" onclick="saveSetupAndContinue()">
+      <i class='bx bx-check-circle'></i>บันทึกและเริ่มใช้งาน
+    </button>
+    <div class="setup-note">
+      📌 วิธีรับ URL:<br>
+      1. เปิด Google Apps Script → <strong>Deploy → New deployment</strong><br>
+      2. Type: <strong>Web app</strong> | Execute as: <strong>Me</strong><br>
+      3. Who has access: <strong>Anyone</strong><br>
+      4. คัดลอก URL มาวางที่นี่<br><br>
+      URL จะถูกบันทึกใน localStorage ของ browser นี้
+    </div>
+  </div>
+</div>
+
+<!-- ══ API STATUS BANNER ══ -->
+<div id="api-status-banner">
+  <i class='bx bx-wifi-off'></i>
+  <span id="api-status-msg">กำลังเชื่อมต่อ...</span>
+  <button onclick="document.getElementById('api-status-banner').style.display='none'"
+    style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-size:18px;">
+    <i class='bx bx-x'></i>
+  </button>
+</div>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-mark-lg"><i class='bx bx-package'></i></div>
+      <h1>ระบบเบิกจ่ายวัสดุ</h1>
+      <p>Supply Management System</p>
+    </div>
+    <div class="login-field">
+      <label>เลือกชื่อผู้ใช้</label>
+      <div class="login-input-wrap">
+        <i class='bx bx-user fi'></i>
+        <select id="login-user"><option value="">-- กำลังโหลด... --</option></select>
+      </div>
+    </div>
+    <div class="login-field">
+      <label>รหัสผ่าน</label>
+      <div class="login-input-wrap">
+        <i class='bx bx-lock-alt fi'></i>
+        <input type="password" id="login-pwd" placeholder="ระบุรหัสผ่าน"
+          onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
+    <button class="btn-login" onclick="doLogin()">
+      <i class='bx bx-log-in'></i>เข้าสู่ระบบ
+    </button>
+    <div class="login-err" id="login-err">
+      <i class='bx bx-error-circle'></i>
+      <span id="login-err-msg">ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</span>
+    </div>
+    <div class="login-footer">v1.0 © 2026 · ระบบเบิกจ่ายวัสดุสำนักงาน</div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeSB()"></div>
+
+<!-- ══ SIDEBAR ══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark"><i class='bx bx-package'></i></div>
+    <div class="logo-text">
+      <h1>ระบบเบิกจ่ายวัสดุ</h1>
+      <p>Supply Management System</p>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-group-lbl">หลัก</div>
+    <div class="nav-item active" data-page="dashboard" onclick="nav('dashboard')">
+      <i class='bx bxs-dashboard'></i>แดชบอร์ด
+    </div>
+    <div class="nav-group-lbl">จัดการวัสดุ</div>
+    <div class="nav-item" data-page="stock" onclick="nav('stock')">
+      <i class='bx bx-list-ul'></i>คลังวัสดุ
+    </div>
+    <div class="nav-item" data-page="form-request" onclick="nav('form-request')">
+      <i class='bx bx-export'></i>แบบฟอร์มเบิกวัสดุ
+    </div>
+    <div class="nav-item" data-page="form-receive" onclick="nav('form-receive')">
+      <i class='bx bx-import'></i>แบบฟอร์มเพิ่มวัสดุ
+    </div>
+    <div class="nav-group-lbl">ข้อมูล</div>
+    <div class="nav-item" data-page="history" onclick="nav('history')">
+      <i class='bx bx-history'></i>ประวัติรายการ
+    </div>
+    <div class="nav-item" data-page="report" onclick="nav('report')">
+      <i class='bx bx-bar-chart-alt-2'></i>รายงาน
+    </div>
+    <div class="nav-group-lbl" id="snav-admin-lbl" style="display:none">ผู้ดูแลระบบ</div>
+    <div class="nav-item admin-only" data-page="personnel"
+      onclick="nav('personnel')" style="display:none">
+      <i class='bx bx-group'></i>บุคลากร
+    </div>
+    <div class="nav-item admin-only" data-page="settings"
+      onclick="nav('settings')" style="display:none">
+      <i class='bx bx-cog'></i>ตั้งค่าระบบ
+    </div>
+  </nav>
+  <div class="sidebar-foot">
+    <i class='bx bx-shield-quarter'></i>
+    <span id="sb-username">-</span>&nbsp;·&nbsp;v1.0
+  </div>
+</aside>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="hamburger" onclick="toggleSB()"><i class='bx bx-menu'></i></button>
+      <div class="topbar-title" id="tb-title">แดชบอร์ด</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-date" id="tb-date"><i class='bx bx-calendar'></i></div>
+      <button class="topbar-btn" onclick="refreshPage()" title="รีเฟรช">
+        <i class='bx bx-refresh'></i>
+      </button>
+      <div class="admin-badge" onclick="doLogout()">
+        <div class="admin-avatar"><i class='bx bx-user'></i></div>
+        <span id="tb-username">-</span>
+        <span class="user-role-badge" id="tb-role-badge">-</span>
+        <i class='bx bx-log-out' style="font-size:14px;color:var(--ink-4);"></i>
+      </div>
+      <button class="topbar-btn" onclick="doLogout()" title="ออกจากระบบ"
+        id="logout-btn-mob" style="display:none">
+        <i class='bx bx-log-out'></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bxs-dashboard'></i>แดชบอร์ด</h2>
+          <p>ภาพรวมสถานะวัสดุและการเคลื่อนไหว</p>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card c-blue">
+          <div class="stat-icon c-blue"><i class='bx bx-package'></i></div>
+          <div><div class="stat-val c-blue" id="s-total">–</div><div class="stat-lbl">วัสดุทั้งหมด</div></div>
+        </div>
+        <div class="stat-card c-green">
+          <div class="stat-icon c-green"><i class='bx bx-check-circle'></i></div>
+          <div><div class="stat-val c-green" id="s-ok">–</div><div class="stat-lbl">ปกติ</div></div>
+        </div>
+        <div class="stat-card c-amber">
+          <div class="stat-icon c-amber"><i class='bx bx-error'></i></div>
+          <div><div class="stat-val c-amber" id="s-low">–</div><div class="stat-lbl">ใกล้หมดสต็อก</div></div>
+        </div>
+        <div class="stat-card c-red">
+          <div class="stat-icon c-red"><i class='bx bx-x-circle'></i></div>
+          <div><div class="stat-val c-red" id="s-out">–</div><div class="stat-lbl">หมดสต็อก</div></div>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class='bx bx-trending-up'></i>การเคลื่อนไหว 7 วัน</div>
+          </div>
+          <div class="card-body"><div class="chart-container"><canvas id="ch1"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class='bx bx-trophy'></i>วัสดุที่เบิกมากที่สุด</div>
+          </div>
+          <div class="card-body"><div class="chart-container"><canvas id="ch2"></canvas></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class='bx bx-time-five'></i>รายการล่าสุด</div>
+          <span class="text-sm">10 รายการล่าสุด</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>วันที่</th><th>ประเภท</th>
+              <th class="hide-mob">ผู้ทำรายการ</th>
+              <th>รายการวัสดุ</th><th>จำนวน</th>
+              <th class="hide-mob">คงเหลือ</th>
+            </tr></thead>
+            <tbody id="dash-tb"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ STOCK ══ -->
+    <div class="page" id="page-stock">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-list-ul'></i>คลังวัสดุ</h2>
+          <p>รายการวัสดุในระบบทั้งหมด · คลิก QR code เพื่อดูรายละเอียด</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-scan btn-sm" onclick="openGlobalScanner('stock')">
+            <i class='bx bx-scan'></i>สแกน QR
+          </button>
+          <button class="btn btn-primary btn-sm admin-only-btn" onclick="openM('m-stock')">
+            <i class='bx bx-plus'></i>เพิ่มวัสดุ
+          </button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="search-box">
+          <span class="search-icon"><i class='bx bx-search'></i></span>
+          <input type="text" placeholder="ค้นหาชื่อหรือรหัสวัสดุ..."
+            id="sq" oninput="filterStock()">
+        </div>
+        <select class="form-control" id="ss" style="max-width:140px;" onchange="filterStock()">
+          <option value="all">ทุกสถานะ</option>
+          <option value="ปกติ">ปกติ</option>
+          <option value="ใกล้หมด">ใกล้หมด</option>
+          <option value="หมดแล้ว">หมดแล้ว</option>
+        </select>
+        <span id="scnt" class="text-sm" style="margin-left:auto;"></span>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th class="hide-mob">รหัส</th><th>ชื่อวัสดุ</th>
+              <th>หน่วย</th><th>คงเหลือ</th><th>สถานะ</th>
+              <th style="width:70px;text-align:center;">QR Code</th>
+            </tr></thead>
+            <tbody id="stock-tb"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FORM REQUEST ══ -->
+    <div class="page" id="page-form-request">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-export'></i>แบบฟอร์มเบิกวัสดุ</h2>
+          <p>สแกน QR/Barcode หรือเลือกรายการวัสดุ แล้วระบุจำนวนเบิก</p>
+        </div>
+        <button class="btn btn-scan btn-sm" onclick="openGlobalScanner('req')">
+          <i class='bx bx-scan'></i>สแกน QR/Barcode
+        </button>
+      </div>
+      <div class="form-section">
+        <div class="form-head"><i class='bx bx-export'></i>แบบฟอร์มขอเบิกวัสดุ</div>
+        <div class="form-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>วันที่</label>
+              <input type="text" class="form-control" id="req-d" readonly>
+            </div>
+            <div class="form-group">
+              <label>ชื่อผู้เบิก</label>
+              <select class="form-control" id="req-p" onchange="onReqPersonChange()">
+                <option value="">-- เลือกผู้เบิก --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>เลขที่ใบแจ้งซ่อม</label>
+              <input type="text" class="form-control" id="req-repair"
+                placeholder="ระบุเลขที่ใบแจ้งซ่อม (ถ้ามี)">
+            </div>
+          </div>
+          <div class="section-lbl">
+            รายการวัสดุที่เบิก
+            <div class="flex gap-2">
+              <button class="btn btn-scan btn-sm" onclick="openGlobalScanner('req')">
+                <i class='bx bx-scan'></i>สแกน
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="addReqRow()">
+                <i class='bx bx-plus'></i>เพิ่มรายการ
+              </button>
+            </div>
+          </div>
+          <table class="items-tbl">
+            <thead><tr>
+              <th style="width:36px">#</th>
+              <th>รายการวัสดุ</th>
+              <th style="width:88px">หน่วย</th>
+              <th style="width:88px">คงเหลือ</th>
+              <th style="width:100px">จำนวนเบิก</th>
+              <th style="width:56px;text-align:center;">QR</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="req-tb"></tbody>
+          </table>
+          <div class="item-cards" id="req-cards"></div>
+          <div class="flex justify-end gap-3 mt-4">
+            <button class="btn btn-outline" onclick="clearReq()">
+              <i class='bx bx-reset'></i>ล้างข้อมูล
+            </button>
+            <button class="btn btn-primary btn-lg" onclick="submitReqWithPwd()">
+              <i class='bx bx-save'></i>บันทึกข้อมูล
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FORM RECEIVE ══ -->
+    <div class="page" id="page-form-receive">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-import'></i>แบบฟอร์มเพิ่มวัสดุ</h2>
+          <p>สแกน QR/Barcode เพื่อเพิ่มวัสดุได้รวดเร็ว</p>
+        </div>
+        <button class="btn btn-scan btn-sm" onclick="openGlobalScanner('rcv')">
+          <i class='bx bx-scan'></i>สแกน QR/Barcode
+        </button>
+      </div>
+      <div class="form-section">
+        <div class="form-head green"><i class='bx bx-import'></i>แบบฟอร์มเพิ่มวัสดุเข้าคลัง</div>
+        <div class="form-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>วันที่</label>
+              <input type="text" class="form-control" id="rcv-d" readonly>
+            </div>
+            <div class="form-group">
+              <label>ชื่อผู้รับ / บันทึก</label>
+              <select class="form-control" id="rcv-p" onchange="onRcvPersonChange()">
+                <option value="">-- เลือกผู้รับ --</option>
+              </select>
+            </div>
+          </div>
+          <div class="section-lbl">
+            รายการวัสดุที่รับเข้า
+            <div class="flex gap-2">
+              <button class="btn btn-scan btn-sm" onclick="openGlobalScanner('rcv')">
+                <i class='bx bx-scan'></i>สแกน
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="addRcvRow()">
+                <i class='bx bx-plus'></i>เพิ่มรายการ
+              </button>
+            </div>
+          </div>
+          <table class="items-tbl">
+            <thead><tr>
+              <th style="width:36px">#</th>
+              <th>รายการวัสดุ</th>
+              <th style="width:88px">หน่วย</th>
+              <th style="width:88px">คงเหลือ</th>
+              <th style="width:100px">จำนวนเพิ่ม</th>
+              <th style="width:56px;text-align:center;">QR</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="rcv-tb"></tbody>
+          </table>
+          <div class="item-cards" id="rcv-cards"></div>
+          <div class="flex justify-end gap-3 mt-4">
+            <button class="btn btn-outline" onclick="clearRcv()">
+              <i class='bx bx-reset'></i>ล้างข้อมูล
+            </button>
+            <button class="btn btn-success btn-lg" onclick="submitRcvWithPwd()">
+              <i class='bx bx-save'></i>บันทึกข้อมูล
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ HISTORY ══ -->
+    <div class="page" id="page-history">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-history'></i>ประวัติรายการ</h2>
+          <p>บันทึกการเบิก/รับวัสดุทั้งหมด</p>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select class="form-control" id="ht" style="max-width:130px;" onchange="loadHistory()">
+          <option value="all">ทั้งหมด</option>
+          <option value="เบิก">เบิก</option>
+          <option value="รับเข้า">รับเข้า</option>
+        </select>
+        <div class="search-box">
+          <span class="search-icon"><i class='bx bx-search'></i></span>
+          <input type="text" placeholder="ค้นหา..." id="hq" oninput="filterHist()">
+        </div>
+        <span id="hcnt" class="text-sm" style="margin-left:auto;"></span>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>วันที่</th><th>ประเภท</th>
+              <th class="hide-mob">ผู้ทำรายการ</th>
+              <th>รายการวัสดุ</th><th>จำนวน</th>
+              <th class="hide-mob">หน่วย</th>
+              <th class="hide-mob">คงเหลือ</th>
+            </tr></thead>
+            <tbody id="hist-tb"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ REPORT ══ -->
+    <div class="page" id="page-report">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-bar-chart-alt-2'></i>รายงาน</h2>
+          <p>วิเคราะห์การใช้วัสดุตามช่วงเวลา</p>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:7px;margin:0;">
+          <label style="font-size:11.5px;white-space:nowrap;font-weight:700;color:var(--ink-3);">จาก</label>
+          <input type="date" class="form-control" id="rs" style="min-height:38px;">
+        </div>
+        <div class="form-group" style="flex-direction:row;align-items:center;gap:7px;margin:0;">
+          <label style="font-size:11.5px;white-space:nowrap;font-weight:700;color:var(--ink-3);">ถึง</label>
+          <input type="date" class="form-control" id="re" style="min-height:38px;">
+        </div>
+        <select class="form-control" id="rt" style="max-width:140px;">
+          <option value="all">ทุกประเภท</option>
+          <option value="เบิก">เบิก</option>
+          <option value="รับเข้า">รับเข้า</option>
+        </select>
+        <button class="btn btn-primary" onclick="genReport()">
+          <i class='bx bx-search'></i>ดูรายงาน
+        </button>
+      </div>
+      <div class="report-grid">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class='bx bx-bar-chart'></i>ปริมาณใช้ (Top 10)</div>
+          </div>
+          <div class="card-body"><div class="chart-container"><canvas id="ch3"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><i class='bx bx-pie-chart-alt-2'></i>สัดส่วนวัสดุ</div>
+          </div>
+          <div class="card-body"><div class="chart-container"><canvas id="ch4"></canvas></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class='bx bx-table'></i>รายละเอียด</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+             <thead><tr>
+              <th>#</th><th>ชื่อวัสดุ</th><th>จำนวนรวม</th>
+              <th>หน่วย</th><th class="hide-mob">จำนวนครั้ง</th>
+            </tr></thead>
+            <tbody id="rpt-tb"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PERSONNEL ══ -->
+    <div class="page" id="page-personnel">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-group'></i>บุคลากร</h2>
+          <p>จัดการรายชื่อและสิทธิ์การเบิกวัสดุ</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openM('m-person')">
+          <i class='bx bx-user-plus'></i>เพิ่มบุคลากร
+        </button>
+      </div>
+      <div id="per-no-access" class="no-access" style="display:none">
+        <i class='bx bx-lock-alt'></i><p>เฉพาะแอดมินเท่านั้น</p>
+      </div>
+      <div id="per-content">
+        <div class="card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>ลำดับ</th><th>ชื่อ-สกุล</th><th>ฝ่ายงาน</th>
+                <th>บทบาท</th><th>รหัสผ่าน</th><th>จัดการ</th>
+              </tr></thead>
+              <tbody id="per-tb"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ══ -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h2><i class='bx bx-cog'></i>ตั้งค่าระบบ</h2>
+          <p>จัดการการแจ้งเตือนและการตั้งค่าต่างๆ</p>
+        </div>
+      </div>
+      <div id="settings-no-access" class="no-access" style="display:none">
+        <i class='bx bx-lock-alt'></i><p>เฉพาะแอดมินเท่านั้น</p>
+      </div>
+      <div id="settings-content">
+        <!-- Telegram -->
+        <div class="setting-section">
+          <div class="setting-head"><i class='bxl bxl-telegram'></i>การแจ้งเตือน Telegram</div>
+          <div class="setting-body">
+            <div class="form-group mb-4">
+              <label>Telegram Bot Token</label>
+              <input type="text" class="form-control" id="tg-token"
+                placeholder="เช่น 123456789:ABCdefGhi...">
+            </div>
+            <div class="form-group mb-4">
+              <label>Chat ID</label>
+              <input type="text" class="form-control" id="tg-chatid"
+                placeholder="เช่น -1001234567890">
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <h4><i class='bx bx-export'></i>แจ้งเตือนเมื่อมีการเบิก</h4>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="tg-on-req" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <h4><i class='bx bx-import'></i>แจ้งเตือนเมื่อมีการรับวัสดุ</h4>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="tg-on-rcv" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div class="setting-info">
+                <h4><i class='bx bx-error'></i>แจ้งเตือนวัสดุใกล้หมด</h4>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="tg-on-low" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="flex gap-3 mt-4 flex-wrap">
+              <button class="btn btn-primary" onclick="saveTgSettings()">
+                <i class='bx bx-save'></i>บันทึกการตั้งค่า
+              </button>
+              <button class="btn btn-outline" onclick="testTelegram()">
+                <i class='bxl bxl-telegram'></i>ทดสอบส่งข้อความ
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- API Settings -->
+        <div class="setting-section">
+          <div class="setting-head" style="background:linear-gradient(135deg,#064e3b,#059669);">
+            <i class='bx bx-link'></i>การเชื่อมต่อ API
+          </div>
+          <div class="setting-body">
+            <div class="form-group mb-4">
+              <label>Apps Script Web App URL</label>
+              <input type="url" class="form-control" id="setting-api-url"
+                placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+            <div class="flex gap-3 flex-wrap">
+              <button class="btn btn-primary" onclick="saveAPIUrl()">
+                <i class='bx bx-save'></i>บันทึก URL
+              </button>
+              <button class="btn btn-outline" onclick="testAPIConnection()">
+                <i class='bx bx-wifi'></i>ทดสอบการเชื่อมต่อ
+              </button>
+            </div>
+            <div id="api-test-result" style="margin-top:12px;display:none;"></div>
+          </div>
+        </div>
+        <!-- Change Password -->
+        <div class="setting-section">
+          <div class="setting-head" style="background:linear-gradient(135deg,#4c1d95,#6d28d9);">
+            <i class='bx bx-lock-alt'></i>เปลี่ยนรหัสผ่านแอดมิน
+          </div>
+          <div class="setting-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>รหัสผ่านใหม่</label>
+                <input type="password" class="form-control" id="adm-pwd1"
+                  placeholder="ระบุรหัสผ่านใหม่">
+              </div>
+              <div class="form-group">
+                <label>ยืนยันรหัสผ่าน</label>
+                <input type="password" class="form-control" id="adm-pwd2"
+                  placeholder="ยืนยันรหัสผ่านใหม่">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="changeAdminPwd()">
+              <i class='bx bx-key'></i>เปลี่ยนรหัสผ่าน
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- ══ BOTTOM NAV ══ -->
+  <nav class="bottom-nav">
+    <div class="bn-inner">
+      <button class="bn-item active" data-p="dashboard" onclick="nav('dashboard')">
+        <span class="bn-icon"><i class='bx bxs-dashboard'></i></span>หลัก
+      </button>
+      <button class="bn-item" data-p="stock" onclick="nav('stock')">
+        <span class="bn-icon"><i class='bx bx-list-ul'></i></span>คลัง
+      </button>
+      <button class="bn-item" data-p="form-request" onclick="nav('form-request')">
+        <span class="bn-icon"><i class='bx bx-export'></i></span>เบิก
+      </button>
+      <button class="bn-item" data-p="form-receive" onclick="nav('form-receive')">
+        <span class="bn-icon"><i class='bx bx-import'></i></span>รับเข้า
+      </button>
+      <button class="bn-item" id="bn-more" onclick="toggleMore()">
+        <span class="bn-icon"><i class='bx bx-dots-horizontal-rounded'></i></span>เพิ่มเติม
+      </button>
+    </div>
+  </nav>
+
+  <div class="more-menu" id="more-menu">
+    <div class="more-item" onclick="nav('history');closeMore()">
+      <i class='bx bx-history'></i>ประวัติรายการ
+    </div>
+    <div class="more-item" onclick="nav('report');closeMore()">
+      <i class='bx bx-bar-chart-alt-2'></i>รายงาน
+    </div>
+    <div class="more-item admin-only-more" style="display:none"
+      onclick="nav('personnel');closeMore()">
+      <i class='bx bx-group'></i>บุคลากร
+    </div>
+    <div class="more-item admin-only-more" style="display:none"
+      onclick="nav('settings');closeMore()">
+      <i class='bx bx-cog'></i>ตั้งค่าระบบ
+    </div>
+  </div>
+
+  <!-- ══ SCAN OVERLAY ══ -->
+  <div id="scan-overlay">
+    <div class="scan-header">
+      <div class="scan-title">
+        <i class='bx bx-scan'></i>
+        <span id="scan-overlay-title">สแกน QR / Barcode</span>
+      </div>
+      <div class="scan-header-actions">
+        <!-- ปุ่มสลับกล้อง หน้า/หลัง -->
+        <button class="scan-switch-btn" id="scan-switch-btn"
+          onclick="switchCamera()" title="สลับกล้อง">
+          <i class='bx bx-revision'></i>
+        </button>
+        <!-- ปุ่มปิด -->
+        <button class="scan-close-btn" onclick="closeGlobalScanner()">
+          <i class='bx bx-x'></i>
+        </button>
+      </div>
+    </div>
+    <div class="scan-body">
+      <div class="scan-viewport">
+        <div id="scan-qr-reader"></div>
+        <div class="scan-aim">
+          <div class="scan-aim-box">
+            <div class="scan-aim-corner tl"></div>
+            <div class="scan-aim-corner tr"></div>
+            <div class="scan-aim-corner bl"></div>
+            <div class="scan-aim-corner br"></div>
+            <div class="scan-laser"></div>
+          </div>
+        </div>
+      </div>
+      <div class="scan-hint" id="scan-hint">จ่อกล้องไปที่ QR Code หรือ Barcode ของวัสดุ</div>
+      <div class="scan-result-bar" id="scan-result-bar">
+        <div class="scan-result-icon">
+          <i class='bx bx-check' id="scan-result-icon-i"></i>
+        </div>
+        <div class="scan-result-name">
+          <strong id="scan-result-name">-</strong>
+          <span id="scan-result-sub">-</span>
+        </div>
+      </div>
+      <div class="scan-manual-bar">
+        <input type="text" id="scan-manual-input"
+          placeholder="หรือพิมพ์รหัส / ชื่อวัสดุแล้วกด Enter"
+          onkeydown="if(event.key==='Enter')doManualScan()">
+        <button class="btn btn-teal btn-sm" onclick="doManualScan()">
+          <i class='bx bx-search'></i>ค้นหา
+        </button>
+      </div>
+      <button class="btn btn-danger" onclick="closeGlobalScanner()" style="min-width:180px;">
+        <i class='bx bx-x'></i>ปิดกล้อง / ยกเลิก
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ QR DETAIL MODAL ══ -->
+  <div class="modal-wrap" id="m-qr-detail">
+    <div class="modal" style="max-width:420px;">
+      <div class="modal-handle"></div>
+      <div class="modal-title"><i class='bx bx-qr-code'></i>รายละเอียดวัสดุ</div>
+      <div style="text-align:center;">
+        <div style="margin-bottom:18px;padding:14px;background:var(--bg);border-radius:10px;border:1px solid var(--border);">
+          <img id="qr-detail-img" src="" alt="QR Code"
+            style="max-width:200px;height:auto;border-radius:8px;">
+        </div>
+        <div style="text-align:left;background:var(--bg);border-radius:10px;padding:16px;border:1px solid var(--border);margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">รหัสวัสดุ</div>
+            <code id="qr-detail-code" style="font-size:16px;font-family:var(--font-head);font-weight:700;color:var(--navy);">-</code>
+          </div>
+          <div style="margin-bottom:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">ชื่อวัสดุ</div>
+            <strong id="qr-detail-name" style="font-size:14px;color:var(--ink);">-</strong>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <div>
+              <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">หน่วย</div>
+              <span class="tag-unit" id="qr-detail-unit">-</span>
+            </div>
+            <div>
+              <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">จำนวนคงเหลือ</div>
+              <div style="font-size:18px;font-family:var(--font-head);font-weight:700;color:var(--teal);" id="qr-detail-qty">-</div>
+            </div>
+          </div>
+          <div style="padding-top:12px;border-top:1px solid var(--border);margin-top:12px;">
+            <div style="font-size:11px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">สถานะ</div>
+            <div id="qr-detail-status">-</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button class="btn btn-outline" onclick="closeM('m-qr-detail')">ปิด</button>
+        <button class="btn btn-primary" onclick="downloadQRCode()">
+          <i class='bx bx-download'></i>ดาวน์โหลด QR
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CODE PREVIEW MODAL ══ -->
+  <div class="modal-wrap" id="m-code-preview">
+    <div class="modal" style="max-width:440px;">
+      <div class="modal-handle"></div>
+      <div class="modal-title"><i class='bx bx-qr-code'></i>QR Code / Barcode วัสดุใหม่</div>
+      <div style="background:var(--bg);border-radius:10px;padding:16px;border:1px solid var(--border);margin-bottom:16px;text-align:center;">
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px;" id="cpv-name">-</div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-bottom:14px;">
+          <button class="code-tab active" id="tab-qr" onclick="switchCodeTab('qr')">
+            <i class='bx bx-qr-code'></i> QR Code
+          </button>
+          <button class="code-tab" id="tab-bar" onclick="switchCodeTab('bar')">
+            <i class='bx bx-barcode'></i> Barcode
+          </button>
+        </div>
+        <div id="cpv-qr-area" style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <img id="cpv-qr-img" src="" alt="QR"
+            style="width:180px;height:180px;border-radius:8px;border:1px solid var(--border);background:#fff;">
+        </div>
+        <div id="cpv-bar-area" style="display:none;flex-direction:column;align-items:center;gap:8px;">
+          <svg id="cpv-barcode"></svg>
+          <div id="cpv-bar-error" style="color:var(--red);font-size:12px;display:none;">
+            ⚠️ ชื่อวัสดุมีอักขระพิเศษ กรุณาใช้ QR Code แทน
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--ink-3);margin-top:10px;" id="cpv-data-label">-</div>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button class="btn btn-outline" onclick="closeM('m-code-preview')">ปิด</button>
+        <button class="btn btn-primary" onclick="downloadCodePreview()">
+          <i class='bx bx-download'></i>ดาวน์โหลด
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADD STOCK MODAL ══ -->
+  <div class="modal-wrap" id="m-stock">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title"><i class='bx bx-package'></i>เพิ่มวัสดุใหม่</div>
+      <div class="form-group mb-4">
+        <label>ชื่อวัสดุ *</label>
+        <input type="text" class="form-control" id="ns-n"
+          placeholder="ระบุชื่อวัสดุ" oninput="updateStockQRPreview()">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>หน่วย *</label>
+          <select class="form-control" id="ns-u" onchange="updateStockQRPreview()">
+            <option>กระป๋อง</option><option>ขวด</option><option>แกลอน</option>
+            <option>ถุง</option><option>แพ็ค</option><option>ชิ้น</option>
+            <option>กล่อง</option><option>อื่นๆ</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>จำนวนเริ่มต้น</label>
+          <input type="number" class="form-control" id="ns-q" placeholder="0" min="0">
+        </div>
+      </div>
+      <div id="ns-code-preview" class="item-code-preview">
+        <div class="item-code-preview-tabs">
+          <button class="code-tab active" id="ns-tab-qr" onclick="switchNsTab('qr')">
+            <i class='bx bx-qr-code'></i> QR Code
+          </button>
+          <button class="code-tab" id="ns-tab-bar" onclick="switchNsTab('bar')">
+            <i class='bx bx-barcode'></i> Barcode
+          </button>
+        </div>
+        <div class="code-display-area">
+          <div id="ns-qr-area">
+            <img id="ns-qr-img" src="" class="qr-preview-img" alt="QR Preview">
+          </div>
+          <div id="ns-bar-area" style="display:none;width:100%;text-align:center;">
+            <svg id="ns-barcode" style="max-width:100%;"></svg>
+            <div id="ns-bar-error"
+              style="color:var(--red);font-size:11px;display:none;margin-top:6px;">
+              ⚠️ ชื่อมีอักขระพิเศษ กรุณาใช้ QR Code
+            </div>
+          </div>
+          <div class="code-label-info" id="ns-code-info">พิมพ์ชื่อวัสดุเพื่อแสดงตัวอย่าง</div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-4">
+        <button class="btn btn-outline" onclick="closeM('m-stock')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="saveStock()">
+          <i class='bx bx-save'></i>บันทึก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ PERSON MODAL ══ -->
+  <div class="modal-wrap" id="m-person">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="m-person-title">
+        <i class='bx bx-user-plus'></i>เพิ่มบุคลากร
+      </div>
+      <input type="hidden" id="np-id">
+      <div class="form-group mb-4">
+        <label>ชื่อ-สกุล *</label>
+        <input type="text" class="form-control" id="np-n" placeholder="ระบุชื่อ-สกุล">
+      </div>
+      <div class="form-group mb-4">
+        <label>ฝ่ายงาน *</label>
+        <input type="text" class="form-control" id="np-d" placeholder="ระบุฝ่ายงาน">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>บทบาท</label>
+          <select class="form-control" id="np-role">
+            <option value="user">บุคลากรทั่วไป</option>
+            <option value="admin">แอดมิน</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>รหัสผ่าน *</label>
+          <input type="password" class="form-control" id="np-pwd" placeholder="ระบุรหัสผ่าน">
+        </div>
+      </div>
+      <div class="flex justify-end gap-3 mt-4">
+        <button class="btn btn-outline" onclick="closeM('m-person')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="savePer()">
+          <i class='bx bx-save'></i>บันทึก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ CONFIRM PASSWORD MODAL ══ -->
+  <div class="modal-wrap" id="m-confirm-pwd">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">
+        <i class='bx bx-lock-open-alt'></i>ยืนยันตัวตนก่อนบันทึก
+      </div>
+      <div class="pwd-confirm-info">
+        <div>
+          <strong id="cpwd-person-name">-</strong>
+          <span id="cpwd-action-label" style="font-size:12px;color:var(--ink-3);">ขอเบิกวัสดุ</span>
+        </div>
+        <div class="item-list" id="cpwd-items"></div>
+      </div>
+      <div class="form-group mb-4">
+        <label>รหัสผ่านของคุณ</label>
+        <div style="position:relative;">
+          <input type="password" class="form-control" id="cpwd-input"
+            placeholder="ระบุรหัสผ่าน" style="padding-right:44px;"
+            onkeydown="if(event.key==='Enter')confirmAndSubmit()">
+          <button onclick="togglePwdVis('cpwd-input',this)"
+            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+            background:none;border:none;cursor:pointer;color:var(--ink-4);padding:4px;">
+            <i class='bx bx-show' style="font-size:18px;"></i>
+          </button>
+        </div>
+      </div>
+      <div class="flex justify-end gap-3">
+        <button class="btn btn-outline" onclick="closeM('m-confirm-pwd')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="confirmAndSubmit()">
+          <i class='bx bx-check'></i>ยืนยันและบันทึก
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container"></div>
+  <div id="loading">
+    <div class="spinner"></div>
+    <div class="loading-lbl" id="ll">กำลังโหลด...</div>
+  </div>
+
+</main>
+
+<!-- ══ SCRIPTS ══ -->
+<script src="api.js"></script>
+<script src="scanner.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════
+   app.js — inline (รวมไว้ใน index.html เพื่อความสะดวก)
+   ทุก google.script.run → ใช้ google object จาก api.js
+════════════════════════════════════════════════════════ */
+
+/* ── SETUP WIZARD ── */
+function checkAndShowSetup() {
+  const saved = localStorage.getItem('gas_api_url');
+  if (saved) {
+    window.APP_CONFIG = window.APP_CONFIG || {};
+    window.APP_CONFIG.API_URL = saved;
+    document.getElementById('setup-wizard').classList.remove('show');
+    // อัปเดต API_URL ใน api.js
+    if (typeof API_URL !== 'undefined') {
+      // reassign ผ่าน module pattern
+    }
+    return true;
+  }
+  // ถ้ายังไม่มี config.js หรือ API_URL ว่าง
+  const cfgUrl = window.APP_CONFIG?.API_URL;
+  if (!cfgUrl || cfgUrl.includes('YOUR_DEPLOYMENT_ID')) {
+    document.getElementById('setup-wizard').classList.add('show');
+    return false;
+  }
+  return true;
+}
+
+function saveSetupAndContinue() {
+  const url = document.getElementById('setup-api-url').value.trim();
+  if (!url || !url.startsWith('https://script.google.com')) {
+    alert('กรุณาระบุ URL ที่ถูกต้อง (ต้องขึ้นต้นด้วย https://script.google.com)');
+    return;
+  }
+  localStorage.setItem('gas_api_url', url);
+  window.APP_CONFIG = window.APP_CONFIG || {};
+  window.APP_CONFIG.API_URL = url;
+  document.getElementById('setup-wizard').classList.remove('show');
+  // reload เพื่อให้ api.js อ่าน config ใหม่
+  location.reload();
+}
+
+/* ── API URL MANAGEMENT ── */
+function saveAPIUrl() {
+  const url = document.getElementById('setting-api-url').value.trim();
+  if (!url) { toast('กรุณาระบุ URL', 'warn'); return; }
+  localStorage.setItem('gas_api_url', url);
+  window.APP_CONFIG.API_URL = url;
+  toast('บันทึก URL สำเร็จ — กำลัง reload...');
+  setTimeout(() => location.reload(), 1200);
+}
+
+async function testAPIConnection() {
+  const resultEl = document.getElementById('api-test-result');
+  resultEl.style.display = 'block';
+    resultEl.innerHTML = '<span style="color:var(--ink-3);">กำลังทดสอบ...</span>';
+  const r = await checkAPIHealth();
+  if (r.ok) {
+    resultEl.innerHTML = `
+      <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;
+        padding:10px 14px;color:#059669;font-size:13px;display:flex;align-items:center;gap:8px;">
+        <i class='bx bx-check-circle' style="font-size:18px;"></i>
+        เชื่อมต่อสำเร็จ — ตอบสนอง ${r.latency}ms
+      </div>`;
+  } else {
+    resultEl.innerHTML = `
+      <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;
+        padding:10px 14px;color:#dc2626;font-size:13px;display:flex;align-items:center;gap:8px;">
+        <i class='bx bx-x-circle' style="font-size:18px;"></i>
+        เชื่อมต่อไม่ได้: ${r.error}
+      </div>`;
+  }
+}
+
+/* ── STATE ── */
+let CURRENT_USER   = null;  // { id, name, role, dept }
+let STOCK_DATA     = [];    // ข้อมูลคลัง (full)
+let STOCK_DATA_FOR_QR = []; // { code, name, unit, qty, status, qrUrl }
+let PERSONNEL_DATA = [];    // ข้อมูลบุคลากร
+let HIST_DATA      = [];    // ข้อมูลประวัติ (cache)
+let rN = 1;                 // จำนวนแถวใบเบิก
+let vN = 1;                 // จำนวนแถวใบรับ
+let _pendingSubmit = null;  // callback รอ confirm password
+let _chartLine     = null;
+let _chartDoughnut = null;
+let _chartBar      = null;
+let _chartPie      = null;
+
+/* ── INIT ── */
+document.addEventListener('DOMContentLoaded', () => {
+  // 1. ตรวจสอบ setup
+  const ready = checkAndShowSetup();
+  if (!ready) return;
+
+  // 2. ตั้งค่าวันที่ Topbar
+  updateDateDisplay();
+  setInterval(updateDateDisplay, 60000);
+
+  // 3. โหลด personnel สำหรับ login dropdown
+  loadPersonnelForLogin();
+
+  // 4. ตรวจสอบ session
+  const savedSession = sessionStorage.getItem('current_user');
+  if (savedSession) {
+    try {
+      CURRENT_USER = JSON.parse(savedSession);
+      afterLogin();
+      return;
+    } catch { sessionStorage.removeItem('current_user'); }
+  }
+
+  // 5. แสดงหน้า Login
+  document.getElementById('login-screen').style.display = 'flex';
+
+  // 6. ตั้งค่า API URL ใน settings (ถ้า load settings page)
+  const savedUrl = localStorage.getItem('gas_api_url') || window.APP_CONFIG?.API_URL || '';
+  const settingInput = document.getElementById('setting-api-url');
+  if (settingInput) settingInput.value = savedUrl;
+});
+
+function updateDateDisplay() {
+  const now = new Date();
+  const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
+  document.getElementById('tb-date').innerHTML =
+    `<i class='bx bx-calendar'></i>${now.toLocaleDateString('th-TH', opts)}`;
+
+  // ตั้งค่าวันที่ในฟอร์ม
+  const dStr = now.toLocaleDateString('th-TH',
+    { year:'numeric', month:'long', day:'numeric' });
+  ['req-d','rcv-d'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = dStr;
+  });
+
+  // ตั้งค่า date range ใน report (ถ้าว่าง)
+  const rs = document.getElementById('rs');
+  const re = document.getElementById('re');
+  if (rs && !rs.value) {
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    rs.value = firstDay.toISOString().split('T')[0];
+  }
+  if (re && !re.value) {
+    re.value = now.toISOString().split('T')[0];
+  }
+}
+
+/* ── LOGIN ── */
+function loadPersonnelForLogin() {
+  google.script.run
+    .withSuccessHandler(data => {
+      PERSONNEL_DATA = data || [];
+      const sel = document.getElementById('login-user');
+      sel.innerHTML = '<option value="">-- เลือกชื่อผู้ใช้ --</option>';
+      PERSONNEL_DATA.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value       = p.id;
+        opt.textContent = `${p.name} (${p.dept || 'ไม่ระบุฝ่าย'})`;
+        opt.dataset.role = p.role;
+        sel.appendChild(opt);
+      });
+    })
+    .withFailureHandler(e => {
+      console.error('loadPersonnel error:', e);
+      document.getElementById('login-user').innerHTML =
+        '<option value="">⚠️ โหลดข้อมูลไม่ได้ — ตรวจสอบ API URL</option>';
+      showAPIBanner('error',
+        'ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบ API URL ใน Setup');
+    })
+    .getPersonnelData();
+}
+
+async function doLogin() {
+  const uid  = document.getElementById('login-user').value;
+  const pwd  = document.getElementById('login-pwd').value;
+  const errEl = document.getElementById('login-err');
+  const errMsg = document.getElementById('login-err-msg');
+
+  if (!uid) {
+    errMsg.textContent = 'กรุณาเลือกชื่อผู้ใช้';
+    errEl.classList.add('show'); return;
+  }
+  if (!pwd) {
+    errMsg.textContent = 'กรุณาระบุรหัสผ่าน';
+    errEl.classList.add('show'); return;
+  }
+
+  errEl.classList.remove('show');
+  showLoading('กำลังตรวจสอบ...');
+
+  google.script.run
+    .withSuccessHandler(result => {
+      hideLoading();
+      if (result?.success) {
+        CURRENT_USER = result.user;
+        sessionStorage.setItem('current_user', JSON.stringify(CURRENT_USER));
+        document.getElementById('login-pwd').value = '';
+        afterLogin();
+      } else {
+        errMsg.textContent = result?.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง';
+        errEl.classList.add('show');
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      errMsg.textContent = 'เชื่อมต่อ API ไม่ได้: ' + (e.message || 'Unknown error');
+      errEl.classList.add('show');
+    })
+    .verifyLogin(uid, pwd);
+}
+
+function afterLogin() {
+  document.getElementById('login-screen').style.display = 'none';
+
+  // อัปเดต UI ตาม role
+  const isAdmin = CURRENT_USER.role === 'admin';
+  document.getElementById('tb-username').textContent  = CURRENT_USER.name;
+  document.getElementById('sb-username').textContent  = CURRENT_USER.name;
+  const badge = document.getElementById('tb-role-badge');
+  badge.textContent = isAdmin ? 'Admin' : 'User';
+  badge.className   = 'user-role-badge ' + (isAdmin ? 'role-admin' : 'role-user');
+
+  // แสดง/ซ่อน admin menus
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? 'flex' : 'none';
+  });
+  document.querySelectorAll('.admin-only-btn').forEach(el => {
+    el.style.display = isAdmin ? 'inline-flex' : 'none';
+  });
+  document.querySelectorAll('.admin-only-more').forEach(el => {
+    el.style.display = isAdmin ? 'flex' : 'none';
+  });
+  const adminLbl = document.getElementById('snav-admin-lbl');
+  if (adminLbl) adminLbl.style.display = isAdmin ? 'block' : 'none';
+
+  // logout บน mobile
+  const logoutMob = document.getElementById('logout-btn-mob');
+  if (window.innerWidth < 768 && logoutMob) logoutMob.style.display = 'flex';
+
+  // โหลดข้อมูลหลัก
+  loadAllData();
+  nav('dashboard');
+}
+
+function doLogout() {
+  Swal.fire({
+    title: 'ออกจากระบบ?',
+    text:  `สวัสดีคุณ ${CURRENT_USER?.name || ''} — ยืนยันออกจากระบบ`,
+    icon:  'question',
+    customClass: {
+      popup:         'swal-custom',
+      confirmButton: 'swal-btn-confirm',
+      cancelButton:  'swal-btn-cancel'
+    },
+    showCancelButton:  true,
+    confirmButtonText: 'ออกจากระบบ',
+    cancelButtonText:  'ยกเลิก',
+    buttonsStyling:    false
+  }).then(r => {
+    if (r.isConfirmed) {
+      sessionStorage.removeItem('current_user');
+      CURRENT_USER = null;
+      STOCK_DATA   = [];
+      PERSONNEL_DATA = [];
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('login-pwd').value = '';
+      document.getElementById('login-err').classList.remove('show');
+    }
+  });
+}
+
+/* ── DATA LOADING ── */
+function loadAllData() {
+  loadStock();
+  loadDashboard();
+}
+
+function refreshPage() {
+  const active = document.querySelector('.page.active')?.id?.replace('page-','');
+  showLoading('กำลังรีเฟรช...');
+  switch (active) {
+    case 'dashboard':    loadDashboard(); break;
+    case 'stock':        loadStock();     break;
+    case 'history':      loadHistory();   break;
+    case 'personnel':    loadPersonnel(); break;
+    case 'report':       genReport();     break;
+    default:             loadAllData();
+  }
+  setTimeout(hideLoading, 800);
+}
+
+function loadStock(cb) {
+  google.script.run
+    .withSuccessHandler(data => {
+      STOCK_DATA = data || [];
+      // สร้าง STOCK_DATA_FOR_QR สำหรับ scanner
+      STOCK_DATA_FOR_QR = STOCK_DATA.map(s => ({
+        code:   s.code   || s[0] || '',
+        name:   s.name   || s[1] || '',
+        unit:   s.unit   || s[2] || '',
+        qty:    s.qty    ?? s[3] ?? 0,
+        status: s.status || s[4] || '',
+        qrUrl:  s.qrUrl  || s[5] || ''
+      }));
+      renderStock();
+      populateItemSelects();
+      hideLoading();
+      if (cb) cb();
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('โหลดคลังวัสดุไม่ได้: ' + e.message, 'err');
+    })
+    .getStockData();
+}
+
+function loadDashboard() {
+  showLoading('กำลังโหลดแดชบอร์ด...');
+  google.script.run
+    .withSuccessHandler(data => {
+      if (!data) return;
+      // Stat cards
+      document.getElementById('s-total').textContent = data.total ?? 0;
+      document.getElementById('s-ok').textContent    = data.ok    ?? 0;
+      document.getElementById('s-low').textContent   = data.low   ?? 0;
+      document.getElementById('s-out').textContent   = data.out   ?? 0;
+      // Recent table
+      renderDashTable(data.recent || []);
+      // Charts
+      renderDashCharts(data.chart7d || [], data.topItems || []);
+      hideLoading();
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('โหลดแดชบอร์ดไม่ได้: ' + e.message, 'err');
+    })
+    .getDashboardStats();
+}
+
+function loadHistory() {
+  const type = document.getElementById('ht')?.value || 'all';
+  showLoading('กำลังโหลดประวัติ...');
+  google.script.run
+    .withSuccessHandler(data => {
+      HIST_DATA = data || [];
+      filterHist();
+      hideLoading();
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('โหลดประวัติไม่ได้: ' + e.message, 'err');
+    })
+    .getHistory({ type });
+}
+
+function loadPersonnel() {
+  if (CURRENT_USER?.role !== 'admin') {
+    document.getElementById('per-no-access').style.display = 'flex';
+    document.getElementById('per-content').style.display   = 'none';
+    return;
+  }
+  showLoading('กำลังโหลดบุคลากร...');
+  google.script.run
+    .withSuccessHandler(data => {
+      PERSONNEL_DATA = data || [];
+      renderPersonnel();
+      hideLoading();
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('โหลดบุคลากรไม่ได้: ' + e.message, 'err');
+    })
+    .getPersonnelData();
+}
+
+function loadSettings() {
+  if (CURRENT_USER?.role !== 'admin') {
+    document.getElementById('settings-no-access').style.display = 'flex';
+    document.getElementById('settings-content').style.display   = 'none';
+    return;
+  }
+  google.script.run
+    .withSuccessHandler(cfg => {
+      if (!cfg) return;
+      const f = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+      const c = (id, v) => { const el = document.getElementById(id); if (el) el.checked = !!v; };
+      f('tg-token',  cfg.token);
+      f('tg-chatid', cfg.chatId);
+      c('tg-on-req', cfg.onReq !== false);
+      c('tg-on-rcv', cfg.onRcv !== false);
+      c('tg-on-low', cfg.onLow !== false);
+    })
+    .withFailureHandler(() => {})
+    .getTelegramConfig();
+
+  // แสดง API URL
+  const savedUrl = localStorage.getItem('gas_api_url') || window.APP_CONFIG?.API_URL || '';
+  const settingInput = document.getElementById('setting-api-url');
+  if (settingInput) settingInput.value = savedUrl;
+}
+
+/* ── NAVIGATION ── */
+const PAGE_TITLES = {
+  dashboard:    'แดชบอร์ด',
+  stock:        'คลังวัสดุ',
+  'form-request': 'แบบฟอร์มเบิกวัสดุ',
+  'form-receive': 'แบบฟอร์มเพิ่มวัสดุ',
+  history:      'ประวัติรายการ',
+  report:       'รายงาน',
+  personnel:    'บุคลากร',
+  settings:     'ตั้งค่าระบบ'
+};
+
+function nav(pageId) {
+  // ซ่อนทุก page
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + pageId)?.classList.add('active');
+
+  // อัปเดต nav active state
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll(`[data-page="${pageId}"]`).forEach(n => n.classList.add('active'));
+
+  // Bottom nav
+  document.querySelectorAll('.bn-item').forEach(n => n.classList.remove('active'));
+  const bnItem = document.querySelector(`.bn-item[data-p="${pageId}"]`);
+  if (bnItem) bnItem.classList.add('active');
+  else document.getElementById('bn-more')?.classList.add('active');
+
+  // Topbar title
+  document.getElementById('tb-title').textContent = PAGE_TITLES[pageId] || pageId;
+
+  // โหลดข้อมูลตาม page
+  switch (pageId) {
+    case 'dashboard':    loadDashboard();                   break;
+    case 'stock':        if (!STOCK_DATA.length) loadStock(); else renderStock(); break;
+    case 'form-request': initReqForm();                    break;
+    case 'form-receive': initRcvForm();                    break;
+    case 'history':      loadHistory();                    break;
+    case 'report':       /* รอกด generate */               break;
+    case 'personnel':    loadPersonnel();                  break;
+    case 'settings':     loadSettings();                   break;
+  }
+
+  closeSB();
+}
+
+/* ── SIDEBAR / MORE ── */
+function toggleSB() {
+  const sb  = document.getElementById('sidebar');
+  const ov  = document.getElementById('overlay');
+  const isOpen = sb.classList.contains('open');
+  sb.classList.toggle('open', !isOpen);
+  ov.classList.toggle('show', !isOpen);
+}
+function closeSB() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+function toggleMore() {
+  const m  = document.getElementById('more-menu');
+  const ov = document.getElementById('overlay');
+  const isOpen = m.classList.contains('show');
+  m.classList.toggle('show', !isOpen);
+  ov.classList.toggle('show', !isOpen);
+}
+function closeMore() {
+  document.getElementById('more-menu').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+/* ── MODALS ── */
+function openM(id) {
+  document.getElementById(id)?.classList.add('open');
+}
+function closeM(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-wrap')) {
+    closeM(e.target.id);
+  }
+});
+
+/* ── LOADING / TOAST ── */
+function showLoading(msg = 'กำลังโหลด...') {
+  document.getElementById('ll').textContent = msg;
+  document.getElementById('loading').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loading').style.display = 'none';
+}
+
+function toast(msg, type = 'ok', dur = 3500) {
+  const icons = { ok:'bx-check', err:'bx-x', warn:'bx-error', info:'bx-info-circle' };
+  const types = { ok:'success', err:'error', warn:'warning', info:'info' };
+  const cls   = 'n-toast-' + (types[type] || 'success');
+  const icon  = icons[type] || icons.ok;
+
+  const el = document.createElement('div');
+  el.className = `n-toast ${cls}`;
+  el.innerHTML = `
+    <div class="n-toast-icon"><i class='bx ${icon}'></i></div>
+    <div class="n-toast-msg">${msg}</div>
+    <div class="n-toast-bar" style="animation-duration:${dur}ms;"></div>`;
+  el.onclick = () => dismissToast(el);
+
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => dismissToast(el), dur);
+}
+function dismissToast(el) {
+  el.classList.add('out');
+  setTimeout(() => el.remove(), 220);
+}
+
+/* ── API BANNER ── */
+function showAPIBanner(type, msg) {
+  const banner = document.getElementById('api-status-banner');
+  const msgEl  = document.getElementById('api-status-msg');
+  banner.className = type; // 'error' | 'warn' | 'ok'
+  msgEl.textContent = msg;
+  if (type === 'ok') setTimeout(() => { banner.style.display = 'none'; }, 3000);
+}
+
+/* ── RENDER STOCK ── */
+function renderStock() {
+  const q   = (document.getElementById('sq')?.value || '').toLowerCase();
+  const sta = document.getElementById('ss')?.value || 'all';
+  let rows  = STOCK_DATA;
+
+  if (q)          rows = rows.filter(s => s.name?.toLowerCase().includes(q) || s.code?.toLowerCase().includes(q));
+  if (sta !== 'all') rows = rows.filter(s => s.status === sta);
+
+  document.getElementById('scnt').textContent = `แสดง ${rows.length} / ${STOCK_DATA.length} รายการ`;
+
+  const tb = document.getElementById('stock-tb');
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="6">
+      <div class="empty-state"><i class='bx bx-package'></i><p>ไม่พบรายการวัสดุ</p></div>
+    </td></tr>`;
+    return;
+  }
+
+  tb.innerHTML = rows.map(s => {
+    const st = s.status || 'ปกติ';
+    const bc = st === 'ปกติ' ? 'badge-ok'
+             : st === 'ใกล้หมด' ? 'badge-warn' : 'badge-danger';
+    const ri = st === 'ปกติ' ? 'bx-check-circle'
+             : st === 'ใกล้หมด' ? 'bx-error' : 'bx-x-circle';
+    const rowCls = st === 'ใกล้หมด' ? 'row-warn' : st === 'หมดแล้ว' ? 'row-danger' : '';
+    const qrCell = s.qrUrl
+      ? `<div class="qr-thumbnail" onclick="showQRDetail('${s.code}','${escQ(s.name)}','${s.unit}',${s.qty},'${s.status}','${s.qrUrl}')">
+           <img src="${s.qrUrl}" alt="QR" loading="lazy">
+         </div>`
+      : `<div class="qr-thumbnail empty" onclick="generateAndShowQR('${s.code}','${escQ(s.name)}')">
+           <i class='bx bx-qr'></i>
+         </div>`;
+    return `<tr class="${rowCls}">
+      <td class="hide-mob"><code class="chip">${s.code || '-'}</code></td>
+      <td><strong>${s.name || '-'}</strong></td>
+      <td><span class="tag-unit">${s.unit || '-'}</span></td>
+      <td><strong>${s.qty ?? 0}</strong></td>
+      <td><span class="badge ${bc}"><i class='bx ${ri}'></i>${st}</span></td>
+      <td style="text-align:center;">${qrCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterStock() { renderStock(); }
+function escQ(str) { return (str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+
+/* ── RENDER DASHBOARD TABLE ── */
+function renderDashTable(rows) {
+  const tb = document.getElementById('dash-tb');
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="6">
+      <div class="empty-state"><i class='bx bx-history'></i><p>ยังไม่มีรายการ</p></div>
+    </td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => {
+    const bc = r.type === 'เบิก' ? 'badge-navy' : 'badge-teal';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:12px;">${r.date || '-'}</td>
+      <td><span class="badge ${bc}">${r.type || '-'}</span></td>
+      <td class="hide-mob">${r.person || '-'}</td>
+      <td>${r.item || '-'}</td>
+      <td><strong>${r.qty ?? '-'}</strong></td>
+      <td class="hide-mob"><span style="color:var(--teal);font-weight:700;">${r.remain ?? '-'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── RENDER DASHBOARD CHARTS ── */
+function renderDashCharts(data7d, topItems) {
+  const fontTh = "'Sarabun', sans-serif";
+  Chart.defaults.font.family = fontTh;
+
+  // Chart 1: Line — การเคลื่อนไหว 7 วัน
+  const ctx1 = document.getElementById('ch1')?.getContext('2d');
+  if (ctx1) {
+    if (_chartLine) _chartLine.destroy();
+    _chartLine = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels:   data7d.map(d => d.label || d.date),
+        datasets: [
+          {
+            label: 'เบิก',
+            data:  data7d.map(d => d.req ?? 0),
+            borderColor: '#1d4ed8', backgroundColor: 'rgba(29,78,216,.08)',
+            tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#1d4ed8'
+          },
+          {
+            label: 'รับเข้า',
+            data:  data7d.map(d => d.rcv ?? 0),
+            borderColor: '#0ea5a0', backgroundColor: 'rgba(14,165,160,.08)',
+            tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#0ea5a0'
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { font: { family: fontTh, size: 12 } } }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { font: { family: fontTh } } },
+          x: { ticks: { font: { family: fontTh } } }
+        }
+      }
+    });
+  }
+
+  // Chart 2: Doughnut — Top items
+  const ctx2 = document.getElementById('ch2')?.getContext('2d');
+  if (ctx2) {
+    if (_chartDoughnut) _chartDoughnut.destroy();
+    _chartDoughnut = new Chart(ctx2, {
+      type: 'doughnut',
+      data: {
+        labels: topItems.map(t => t.name),
+        datasets: [{
+          data: topItems.map(t => t.total ?? t.qty ?? 0),
+          backgroundColor: [
+            '#1d4ed8','#0ea5a0','#10b981','#f59e0b','#ef4444',
+            '#7c3aed','#db2777','#0891b2','#65a30d','#d97706'
+          ],
+          borderWidth: 2, borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { font: { family: fontTh, size: 11 }, boxWidth: 12 } }
+        },
+        cutout: '60%'
+      }
+    });
+  }
+}
+
+/* ── RENDER HISTORY ── */
+function filterHist() {
+  const q   = (document.getElementById('hq')?.value || '').toLowerCase();
+  const ht  = document.getElementById('ht')?.value || 'all';
+  let rows  = HIST_DATA;
+
+  if (ht !== 'all') rows = rows.filter(r => r.type === ht);
+  if (q) rows = rows.filter(r =>
+    (r.item   || '').toLowerCase().includes(q) ||
+    (r.person || '').toLowerCase().includes(q) ||
+    (r.date   || '').toLowerCase().includes(q)
+  );
+
+  document.getElementById('hcnt').textContent =
+    `แสดง ${rows.length} / ${HIST_DATA.length} รายการ`;
+
+  const tb = document.getElementById('hist-tb');
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="7">
+      <div class="empty-state"><i class='bx bx-history'></i><p>ไม่พบรายการ</p></div>
+    </td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => {
+    const bc = r.type === 'เบิก' ? 'badge-navy' : 'badge-teal';
+    return `<tr>
+      <td style="font-size:12px;white-space:nowrap;">${r.date || '-'}</td>
+      <td><span class="badge ${bc}">${r.type || '-'}</span></td>
+      <td class="hide-mob">${r.person || '-'}</td>
+      <td>${r.item || '-'}</td>
+      <td><strong>${r.qty ?? '-'}</strong></td>
+      <td class="hide-mob"><span class="tag-unit">${r.unit || '-'}</span></td>
+      <td class="hide-mob">${r.remain ?? '-'}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── RENDER PERSONNEL ── */
+function renderPersonnel() {
+  const tb = document.getElementById('per-tb');
+  if (!PERSONNEL_DATA.length) {
+     tb.innerHTML = `<tr><td colspan="6">
+    <div class="empty-state"><i class='bx bx-group'></i><p>ยังไม่มีบุคลากร</p></div>
+  </td></tr>`;
+    return;
+  }
+  tb.innerHTML = PERSONNEL_DATA.map((p, i) => {
+    const rc = p.role === 'admin'
+      ? '<span class="badge badge-blue"><i class=\'bx bx-shield\'></i>Admin</span>'
+      : '<span class="badge badge-ok"><i class=\'bx bx-user\'></i>User</span>';
+    return `<tr>
+      <td style="color:var(--ink-3);font-size:12px;">${i + 1}</td>
+      <td><strong>${p.name || '-'}</strong></td>
+      <td>${p.dept || '-'}</td>
+      <td>${rc}</td>
+      <td><code class="chip">••••••</code></td>
+      <td>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm btn-icon"
+            onclick="editPerson('${p.id}')" title="แก้ไข">
+            <i class='bx bx-edit'></i>
+          </button>
+          <button class="btn btn-danger btn-sm btn-icon"
+            onclick="deletePerson('${p.id}','${escQ(p.name)}')" title="ลบ">
+            <i class='bx bx-trash'></i>
+          </button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── PERSON CRUD ── */
+function openM_person_new() {
+  document.getElementById('np-id').value   = '';
+  document.getElementById('np-n').value    = '';
+  document.getElementById('np-d').value    = '';
+  document.getElementById('np-role').value = 'user';
+  document.getElementById('np-pwd').value  = '';
+  document.getElementById('m-person-title').innerHTML =
+    "<i class='bx bx-user-plus'></i>เพิ่มบุคลากร";
+  openM('m-person');
+}
+
+function editPerson(id) {
+  const p = PERSONNEL_DATA.find(x => x.id == id);
+  if (!p) return;
+  document.getElementById('np-id').value   = p.id;
+  document.getElementById('np-n').value    = p.name  || '';
+  document.getElementById('np-d').value    = p.dept  || '';
+  document.getElementById('np-role').value = p.role  || 'user';
+  document.getElementById('np-pwd').value  = '';
+  document.getElementById('m-person-title').innerHTML =
+    "<i class='bx bx-edit'></i>แก้ไขบุคลากร";
+  openM('m-person');
+}
+
+function savePer() {
+  const id   = document.getElementById('np-id').value.trim();
+  const name = document.getElementById('np-n').value.trim();
+  const dept = document.getElementById('np-d').value.trim();
+  const role = document.getElementById('np-role').value;
+  const pwd  = document.getElementById('np-pwd').value.trim();
+
+  if (!name) { toast('กรุณาระบุชื่อ-สกุล', 'warn'); return; }
+  if (!dept) { toast('กรุณาระบุฝ่ายงาน',   'warn'); return; }
+  if (!id && !pwd) { toast('กรุณาตั้งรหัสผ่าน', 'warn'); return; }
+
+  showLoading('กำลังบันทึก...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) {
+        toast(id ? '✓ แก้ไขบุคลากรสำเร็จ' : '✓ เพิ่มบุคลากรสำเร็จ');
+        closeM('m-person');
+        loadPersonnel();
+        loadPersonnelForLogin();
+      } else {
+        toast(res?.message || 'บันทึกไม่สำเร็จ', 'err');
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .savePersonnel({ id, name, dept, role, pwd });
+}
+
+function deletePerson(id, name) {
+  Swal.fire({
+    title: 'ลบบุคลากร?',
+    html:  `ยืนยันลบ <strong>${name}</strong> ออกจากระบบ
+
+            <span style="color:var(--red);font-size:12px;">⚠️ ไม่สามารถกู้คืนได้</span>`,
+    icon:  'warning',
+    customClass: {
+      popup:         'swal-custom',
+      confirmButton: 'swal-btn-danger',
+      cancelButton:  'swal-btn-cancel'
+    },
+    showCancelButton:  true,
+    confirmButtonText: '<i class="bx bx-trash"></i> ลบเลย',
+    cancelButtonText:  'ยกเลิก',
+    buttonsStyling:    false
+  }).then(r => {
+    if (!r.isConfirmed) return;
+    showLoading('กำลังลบ...');
+    google.script.run
+      .withSuccessHandler(res => {
+        hideLoading();
+        if (res?.success) {
+          toast('✓ ลบบุคลากรสำเร็จ');
+          loadPersonnel();
+          loadPersonnelForLogin();
+        } else {
+          toast(res?.message || 'ลบไม่สำเร็จ', 'err');
+        }
+      })
+      .withFailureHandler(e => {
+        hideLoading();
+        toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+      })
+      .deletePersonnel(id);
+  });
+}
+
+/* ── STOCK CRUD ── */
+function saveStock() {
+  const name = document.getElementById('ns-n').value.trim();
+  const unit = document.getElementById('ns-u').value;
+  const qty  = parseInt(document.getElementById('ns-q').value) || 0;
+
+  if (!name) { toast('กรุณาระบุชื่อวัสดุ', 'warn'); return; }
+
+  showLoading('กำลังบันทึก...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) {
+        toast('✓ เพิ่มวัสดุสำเร็จ');
+        closeM('m-stock');
+        // แสดง code preview
+        if (res.qrUrl || res.code) {
+          showCodePreview(res.code, name, unit, qty, res.qrUrl);
+        }
+        document.getElementById('ns-n').value = '';
+        document.getElementById('ns-q').value = '';
+        document.getElementById('ns-code-preview').classList.remove('show');
+        loadStock();
+      } else {
+        toast(res?.message || 'บันทึกไม่สำเร็จ', 'err');
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .addStockItem({ name, unit, qty });
+}
+
+/* ── QR CODE ── */
+function showQRDetail(code, name, unit, qty, status, qrUrl) {
+  document.getElementById('qr-detail-code').textContent = code || '-';
+  document.getElementById('qr-detail-name').textContent = name || '-';
+  document.getElementById('qr-detail-unit').textContent = unit || '-';
+  document.getElementById('qr-detail-qty').textContent  = qty  ?? '-';
+  document.getElementById('qr-detail-img').src          = qrUrl || '';
+
+  const st = status || 'ปกติ';
+  const bc = st === 'ปกติ' ? 'badge-ok'
+           : st === 'ใกล้หมด' ? 'badge-warn' : 'badge-danger';
+  const ri = st === 'ปกติ' ? 'bx-check-circle'
+           : st === 'ใกล้หมด' ? 'bx-error' : 'bx-x-circle';
+  document.getElementById('qr-detail-status').innerHTML =
+    `<span class="badge ${bc}"><i class='bx ${ri}'></i>${st}</span>`;
+
+  openM('m-qr-detail');
+}
+
+function downloadQRCode() {
+  const img = document.getElementById('qr-detail-img');
+  const nm  = document.getElementById('qr-detail-name').textContent || 'qr';
+  if (!img.src) { toast('ไม่มีรูป QR Code', 'warn'); return; }
+  const a = document.createElement('a');
+  a.href     = img.src;
+  a.download = `QR_${nm}.png`;
+  a.click();
+}
+
+function generateAndShowQR(code, name) {
+  toast('กำลังสร้าง QR Code...', 'info');
+  google.script.run
+    .withSuccessHandler(res => {
+      if (res?.qrUrl) {
+        showQRDetail(code, name, '', '', '', res.qrUrl);
+        loadStock(); // รีเฟรชข้อมูลใหม่
+      } else {
+        toast('สร้าง QR ไม่สำเร็จ', 'err');
+      }
+    })
+    .withFailureHandler(() => toast('เกิดข้อผิดพลาด', 'err'))
+    .generateQRForItem(code);
+}
+
+/* ── CODE PREVIEW (หลังเพิ่มวัสดุ) ── */
+let _cpvCurrentTab = 'qr';
+let _cpvData       = {};
+
+function showCodePreview(code, name, unit, qty, qrUrl) {
+  _cpvData = { code, name, unit, qty, qrUrl };
+  _cpvCurrentTab = 'qr';
+  document.getElementById('cpv-name').textContent        = `${name} (${unit})`;
+  document.getElementById('cpv-data-label').textContent  = `รหัส: ${code}`;
+  document.getElementById('cpv-qr-img').src              = qrUrl || '';
+  document.getElementById('tab-qr').classList.add('active');
+  document.getElementById('tab-bar').classList.remove('active');
+  document.getElementById('cpv-qr-area').style.display   = 'flex';
+  document.getElementById('cpv-bar-area').style.display  = 'none';
+  openM('m-code-preview');
+}
+
+function switchCodeTab(tab) {
+  _cpvCurrentTab = tab;
+  const isQR = tab === 'qr';
+  document.getElementById('tab-qr').classList.toggle('active', isQR);
+  document.getElementById('tab-bar').classList.toggle('active', !isQR);
+  document.getElementById('cpv-qr-area').style.display  = isQR   ? 'flex' : 'none';
+  document.getElementById('cpv-bar-area').style.display = !isQR  ? 'flex' : 'none';
+
+  if (!isQR) {
+    // สร้าง Barcode
+    const errEl = document.getElementById('cpv-bar-error');
+    try {
+      JsBarcode('#cpv-barcode', _cpvData.code || _cpvData.name, {
+        format:      'CODE128',
+        width:       2,
+        height:      70,
+        displayValue: true,
+        font:        'Sarabun',
+        fontSize:    13,
+        margin:      8
+      });
+      errEl.style.display = 'none';
+    } catch (e) {
+      errEl.style.display = 'block';
+      errEl.textContent   = '⚠️ ไม่สามารถสร้าง Barcode ได้: ' + e.message;
+    }
+  }
+}
+
+function downloadCodePreview() {
+  if (_cpvCurrentTab === 'qr') {
+    const img = document.getElementById('cpv-qr-img');
+    if (!img.src) { toast('ไม่มีรูป QR', 'warn'); return; }
+    const a = document.createElement('a');
+    a.href     = img.src;
+    a.download = `QR_${_cpvData.name || 'item'}.png`;
+    a.click();
+  } else {
+    const svg = document.getElementById('cpv-barcode');
+    const s   = new XMLSerializer().serializeToString(svg);
+    const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+    const a   = document.createElement('a');
+    a.href     = url;
+    a.download = `Barcode_${_cpvData.name || 'item'}.svg`;
+    a.click();
+  }
+}
+
+/* ── ADD STOCK QR PREVIEW ── */
+let _nsCurrentTab = 'qr';
+let _nsQRDebounce = null;
+
+function updateStockQRPreview() {
+  const name = document.getElementById('ns-n')?.value.trim();
+  const unit = document.getElementById('ns-u')?.value;
+  const prev = document.getElementById('ns-code-preview');
+
+  if (!name) { prev.classList.remove('show'); return; }
+  prev.classList.add('show');
+
+  clearTimeout(_nsQRDebounce);
+  _nsQRDebounce = setTimeout(() => {
+    const previewData = `${name}|${unit}`;
+    // ใช้ Google Charts API สำหรับ preview QR (ไม่ต้องการ server)
+    const qrUrl = `https://chart.googleapis.com/chart?chs=200x200&cht=qr&chl=${encodeURIComponent(previewData)}&choe=UTF-8`;
+    document.getElementById('ns-qr-img').src     = qrUrl;
+    document.getElementById('ns-code-info').textContent =
+      `ตัวอย่าง QR สำหรับ "${name}" (${unit}) · รหัสจริงจะถูกสร้างอัตโนมัติ`;
+
+    if (_nsCurrentTab === 'bar') _renderNsBarcode(name);
+  }, 400);
+}
+
+function switchNsTab(tab) {
+  _nsCurrentTab = tab;
+  const isQR = tab === 'qr';
+  document.getElementById('ns-tab-qr').classList.toggle('active', isQR);
+  document.getElementById('ns-tab-bar').classList.toggle('active', !isQR);
+  document.getElementById('ns-qr-area').style.display  = isQR  ? 'block' : 'none';
+  document.getElementById('ns-bar-area').style.display = !isQR ? 'block' : 'none';
+
+  if (!isQR) {
+    const name = document.getElementById('ns-n')?.value.trim();
+    if (name) _renderNsBarcode(name);
+  }
+}
+
+function _renderNsBarcode(text) {
+  const errEl = document.getElementById('ns-bar-error');
+  try {
+    JsBarcode('#ns-barcode', text, {
+      format: 'CODE128', width: 1.8, height: 60,
+      displayValue: true, font: 'Sarabun', fontSize: 12, margin: 6
+    });
+    errEl.style.display = 'none';
+  } catch (e) {
+    errEl.style.display = 'block';
+  }
+}
+
+/* ── FORM REQUEST ── */
+function initReqForm() {
+  if (!document.querySelector('#req-tb tr')) addReqRow();
+  populateItemSelects();
+  populatePersonSelect('req-p');
+}
+
+function populatePersonSelect(selId) {
+  const sel = document.getElementById(selId);
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="">-- เลือกผู้เบิก/รับ --</option>';
+  PERSONNEL_DATA.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value       = p.id;
+    opt.textContent = `${p.name}${p.dept ? ' · ' + p.dept : ''}`;
+    if (p.id == CURRENT_USER?.id) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  if (curVal) sel.value = curVal;
+  // auto select current user
+  if (!sel.value && CURRENT_USER?.id) sel.value = CURRENT_USER.id;
+}
+
+function populateItemSelects() {
+  // อัปเดต select ในทุกแถว
+  document.querySelectorAll('.item-sel').forEach(sel => {
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">-- เลือกวัสดุ --</option>';
+    STOCK_DATA.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value         = s.code;
+      opt.textContent   = `${s.name} (คงเหลือ: ${s.qty ?? 0} ${s.unit})`;
+      opt.dataset.name  = s.name;
+      opt.dataset.unit  = s.unit;
+      opt.dataset.qty   = s.qty ?? 0;
+      opt.dataset.status= s.status || '';
+      opt.dataset.qrUrl = s.qrUrl  || '';
+      sel.appendChild(opt);
+    });
+    if (cur) sel.value = cur;
+  });
+}
+
+function addReqRow(item) {
+  const i    = rN++;
+  const tb   = document.getElementById('req-tb');
+  const card = document.getElementById('req-cards');
+
+  // ── desktop row ──
+  const tr = document.createElement('tr');
+  tr.id    = `req-row-${i}`;
+  tr.innerHTML = `
+    <td style="color:var(--ink-3);font-size:12px;text-align:center;">${i}</td>
+    <td>
+      <select class="item-sel" id="req-item-${i}"
+        onchange="onItemChange('req',${i})">
+        <option value="">-- เลือกวัสดุ --</option>
+        ${STOCK_DATA.map(s =>
+          `<option value="${s.code}"
+            data-name="${escQ(s.name)}" data-unit="${s.unit}"
+            data-qty="${s.qty ?? 0}" data-status="${s.status || ''}"
+            data-qrurl="${s.qrUrl || ''}"
+            ${item?.code === s.code ? 'selected' : ''}>
+            ${s.name} (คงเหลือ: ${s.qty ?? 0} ${s.unit})
+          </option>`
+        ).join('')}
+      </select>
+    </td>
+    <td><input class="form-control" id="req-unit-${i}" readonly
+      style="background:var(--bg);font-size:12px;" placeholder="-"></td>
+    <td><input class="form-control" id="req-stock-${i}" readonly
+      style="background:var(--bg);font-size:12px;" placeholder="-"></td>
+    <td><input type="number" class="form-control" id="req-qty-${i}"
+      min="1" placeholder="0" value="${item ? 1 : ''}"></td>
+    <td style="text-align:center;">
+      <div class="row-qr-thumb empty" id="req-row-qr-${i}">
+        <i class='bx bx-qr'></i>
+      </div>
+    </td>
+    <td>
+      <button class="btn btn-danger btn-sm btn-icon"
+        onclick="removeRow('req-row-${i}','req-card-${i}')">
+        <i class='bx bx-minus'></i>
+      </button>
+    </td>`;
+  tb.appendChild(tr);
+
+  // ── mobile card ──
+  const div   = document.createElement('div');
+  div.id      = `req-card-${i}`;
+  div.className = 'item-card';
+  div.innerHTML = `
+    <div class="item-card-num">#${i}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div class="row-qr-thumb empty" id="req-card-qr-${i}">
+        <i class='bx bx-qr'></i>
+      </div>
+      <select class="item-sel" id="req-item-m-${i}" style="flex:1;"
+        onchange="syncCardToRow('req',${i})">
+        <option value="">-- เลือกวัสดุ --</option>
+        ${STOCK_DATA.map(s =>
+          `<option value="${s.code}"
+            data-name="${escQ(s.name)}" data-unit="${s.unit}"
+            data-qty="${s.qty ?? 0}" data-status="${s.status || ''}"
+            data-qrurl="${s.qrUrl || ''}"
+            ${item?.code === s.code ? 'selected' : ''}>
+            ${s.name} (คงเหลือ: ${s.qty ?? 0} ${s.unit})
+          </option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="item-card-row">
+      <div class="form-group">
+        <label>หน่วย</label>
+        <input class="form-control" id="req-unit-m-${i}" readonly
+          style="background:var(--bg);" placeholder="-">
+      </div>
+      <div class="form-group">
+        <label>คงเหลือ</label>
+        <input class="form-control" id="req-stock-m-${i}" readonly
+          style="background:var(--bg);" placeholder="-">
+      </div>
+    </div>
+    <div class="form-group mt-2">
+      <label>จำนวนเบิก</label>
+      <input type="number" class="form-control" id="req-qty-m-${i}"
+        min="1" placeholder="ระบุจำนวน" value="${item ? 1 : ''}">
+    </div>
+    <button class="btn btn-danger btn-sm"
+      style="margin-top:10px;width:100%;"
+      onclick="removeRow('req-row-${i}','req-card-${i}')">
+      <i class='bx bx-minus'></i>ลบรายการนี้
+    </button>`;
+  card.appendChild(div);
+
+  // ถ้ามี item สแกนมา → set ค่า
+  if (item) {
+    setTimeout(() => {
+      onItemChange('req', i, item);
+    }, 50);
+  }
+
+  return i;
+}
+
+function onItemChange(formType, i, overrideItem) {
+  const sel  = document.getElementById(`${formType}-item-${i}`);
+  const selM = document.getElementById(`${formType}-item-m-${i}`);
+  const opt  = sel?.options[sel.selectedIndex];
+
+  let name = '', unit = '', qty = 0, status = '', qrUrl = '';
+
+  if (overrideItem) {
+    name   = overrideItem.name   || '';
+    unit   = overrideItem.unit   || '';
+    qty    = overrideItem.qty    ?? 0;
+    status = overrideItem.status || '';
+    qrUrl  = overrideItem.qrUrl  || '';
+    // set select ด้วย code
+    if (sel  && overrideItem.code) sel.value  = overrideItem.code;
+    if (selM && overrideItem.code) selM.value = overrideItem.code;
+  } else if (opt?.value) {
+    name   = opt.dataset.name   || '';
+    unit   = opt.dataset.unit   || '';
+    qty    = parseInt(opt.dataset.qty)   || 0;
+    status = opt.dataset.status || '';
+    qrUrl  = opt.dataset.qrurl  || '';
+    if (selM) selM.value = opt.value;
+  }
+
+  // อัปเดต desktop
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setVal(`${formType}-unit-${i}`,  unit);
+  setVal(`${formType}-stock-${i}`, qty + ' ' + unit);
+  setVal(`${formType}-unit-m-${i}`,  unit);
+  setVal(`${formType}-stock-m-${i}`, qty + ' ' + unit);
+
+  // อัปเดต QR thumbnail
+  _updateRowQR(formType, i, { name, unit, qty, status, qrUrl,
+    code: sel?.value || overrideItem?.code || '' });
+
+  // เตือนถ้าใกล้หมดหรือหมด
+  if (status === 'หมดแล้ว') {
+    toast(`⚠️ "${name}" หมดสต็อกแล้ว กรุณาตรวจสอบ`, 'warn');
+  } else if (status === 'ใกล้หมด') {
+    toast(`ℹ️ "${name}" ใกล้หมดสต็อก (เหลือ ${qty} ${unit})`, 'info');
+  }
+}
+
+function syncCardToRow(formType, i) {
+  const selM = document.getElementById(`${formType}-item-m-${i}`);
+  const sel  = document.getElementById(`${formType}-item-${i}`);
+  if (sel && selM) sel.value = selM.value;
+  onItemChange(formType, i);
+}
+
+function removeRow(rowId, cardId) {
+  document.getElementById(rowId)?.remove();
+  document.getElementById(cardId)?.remove();
+}
+
+function onReqPersonChange() {
+  // ไม่ต้องทำอะไรพิเศษ — แค่ record ไว้
+}
+function onRcvPersonChange() { /* เหมือนกัน */ }
+
+function clearReq() {
+  document.getElementById('req-tb').innerHTML    = '';
+  document.getElementById('req-cards').innerHTML = '';
+  document.getElementById('req-repair').value    = '';
+  rN = 1;
+  addReqRow();
+  toast('ล้างข้อมูลแล้ว', 'info');
+}
+
+/* ── FORM RECEIVE ── */
+function initRcvForm() {
+  if (!document.querySelector('#rcv-tb tr')) addRcvRow();
+  populateItemSelects();
+  populatePersonSelect('rcv-p');
+}
+
+function addRcvRow(item) {
+  const i    = vN++;
+  const tb   = document.getElementById('rcv-tb');
+  const card = document.getElementById('rcv-cards');
+
+  const tr   = document.createElement('tr');
+  tr.id      = `rcv-row-${i}`;
+  tr.innerHTML = `
+    <td style="color:var(--ink-3);font-size:12px;text-align:center;">${i}</td>
+    <td>
+      <select class="item-sel" id="rcv-item-${i}"
+        onchange="onItemChange('rcv',${i})">
+        <option value="">-- เลือกวัสดุ --</option>
+        ${STOCK_DATA.map(s =>
+          `<option value="${s.code}"
+            data-name="${escQ(s.name)}" data-unit="${s.unit}"
+            data-qty="${s.qty ?? 0}" data-status="${s.status || ''}"
+            data-qrurl="${s.qrUrl || ''}"
+            ${item?.code === s.code ? 'selected' : ''}>
+            ${s.name} (คงเหลือ: ${s.qty ?? 0} ${s.unit})
+          </option>`
+        ).join('')}
+      </select>
+    </td>
+    <td><input class="form-control" id="rcv-unit-${i}" readonly
+      style="background:var(--bg);font-size:12px;" placeholder="-"></td>
+    <td><input class="form-control" id="rcv-stock-${i}" readonly
+      style="background:var(--bg);font-size:12px;" placeholder="-"></td>
+    <td><input type="number" class="form-control" id="rcv-qty-${i}"
+      min="1" placeholder="0" value="${item ? 1 : ''}"></td>
+    <td style="text-align:center;">
+      <div class="row-qr-thumb empty" id="rcv-row-qr-${i}">
+        <i class='bx bx-qr'></i>
+      </div>
+    </td>
+    <td>
+      <button class="btn btn-danger btn-sm btn-icon"
+        onclick="removeRow('rcv-row-${i}','rcv-card-${i}')">
+        <i class='bx bx-minus'></i>
+      </button>
+    </td>`;
+  tb.appendChild(tr);
+
+  // mobile card
+  const div     = document.createElement('div');
+  div.id        = `rcv-card-${i}`;
+  div.className = 'item-card';
+  div.innerHTML = `
+    <div class="item-card-num">#${i}</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <div class="row-qr-thumb empty" id="rcv-card-qr-${i}">
+        <i class='bx bx-qr'></i>
+      </div>
+      <select class="item-sel" id="rcv-item-m-${i}" style="flex:1;"
+        onchange="syncCardToRow('rcv',${i})">
+        <option value="">-- เลือกวัสดุ --</option>
+        ${STOCK_DATA.map(s =>
+          `<option value="${s.code}"
+            data-name="${escQ(s.name)}" data-unit="${s.unit}"
+            data-qty="${s.qty ?? 0}" data-status="${s.status || ''}"
+            data-qrurl="${s.qrUrl || ''}"
+            ${item?.code === s.code ? 'selected' : ''}>
+            ${s.name} (คงเหลือ: ${s.qty ?? 0} ${s.unit})
+          </option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="item-card-row">
+      <div class="form-group">
+        <label>หน่วย</label>
+        <input class="form-control" id="rcv-unit-m-${i}" readonly
+          style="background:var(--bg);" placeholder="-">
+      </div>
+      <div class="form-group">
+        <label>คงเหลือ</label>
+        <input class="form-control" id="rcv-stock-m-${i}" readonly
+          style="background:var(--bg);" placeholder="-">
+      </div>
+    </div>
+    <div class="form-group mt-2">
+      <label>จำนวนที่รับเข้า</label>
+      <input type="number" class="form-control" id="rcv-qty-m-${i}"
+        min="1" placeholder="ระบุจำนวน" value="${item ? 1 : ''}">
+    </div>
+    <button class="btn btn-danger btn-sm"
+      style="margin-top:10px;width:100%;"
+      onclick="removeRow('rcv-row-${i}','rcv-card-${i}')">
+      <i class='bx bx-minus'></i>ลบรายการนี้
+    </button>`;
+  card.appendChild(div);
+
+  if (item) {
+    setTimeout(() => onItemChange('rcv', i, item), 50);
+  }
+  return i;
+}
+
+function clearRcv() {
+  document.getElementById('rcv-tb').innerHTML    = '';
+  document.getElementById('rcv-cards').innerHTML = '';
+  vN = 1;
+  addRcvRow();
+  toast('ล้างข้อมูลแล้ว', 'info');
+}
+
+/* ── QR THUMBNAIL IN ROW ── */
+function _updateRowQR(formType, i, item) {
+  const ids = [
+    `${formType}-row-qr-${i}`,
+    `${formType}-card-qr-${i}`
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (item.qrUrl) {
+      el.className = 'row-qr-thumb';
+      el.innerHTML = `<img src="${item.qrUrl}" alt="QR" loading="lazy">`;
+      el.onclick   = () => showQRDetail(
+        item.code, item.name, item.unit, item.qty, item.status, item.qrUrl
+      );
+    } else {
+      el.className = 'row-qr-thumb empty';
+      el.innerHTML = `<i class='bx bx-qr'></i>`;
+      el.onclick   = () => generateAndShowQR(item.code, item.name);
+    }
+  });
+}
+
+/* ── COLLECT FORM DATA ── */
+function collectReqItems() {
+  const items = [];
+  const rows  = document.querySelectorAll('#req-tb tr');
+
+  rows.forEach((tr, idx) => {
+    const n  = idx + 1;
+    // พยายาม read จาก desktop ก่อน แล้ว fallback mobile
+    const sel  = document.getElementById(`req-item-${n}`)
+               || document.getElementById(`req-item-m-${n}`);
+    const qtyD = document.getElementById(`req-qty-${n}`);
+    const qtyM = document.getElementById(`req-qty-m-${n}`);
+    const qty  = parseInt(qtyD?.value || qtyM?.value) || 0;
+
+    if (!sel?.value || !qty) return;
+
+    const opt  = sel.options[sel.selectedIndex];
+    items.push({
+      code:   sel.value,
+      name:   opt?.dataset?.name  || opt?.text?.split(' (')[0] || sel.value,
+      unit:   opt?.dataset?.unit  || '',
+      qty,
+      stock:  parseInt(opt?.dataset?.qty) || 0
+    });
+  });
+  return items;
+}
+
+function collectRcvItems() {
+  const items = [];
+  const rows  = document.querySelectorAll('#rcv-tb tr');
+
+  rows.forEach((tr, idx) => {
+    const n   = idx + 1;
+    const sel = document.getElementById(`rcv-item-${n}`)
+              || document.getElementById(`rcv-item-m-${n}`);
+    const qtyD = document.getElementById(`rcv-qty-${n}`);
+    const qtyM = document.getElementById(`rcv-qty-m-${n}`);
+    const qty  = parseInt(qtyD?.value || qtyM?.value) || 0;
+
+    if (!sel?.value || !qty) return;
+
+    const opt = sel.options[sel.selectedIndex];
+    items.push({
+      code:  sel.value,
+      name:  opt?.dataset?.name || opt?.text?.split(' (')[0] || sel.value,
+      unit:  opt?.dataset?.unit || '',
+      qty,
+      stock: parseInt(opt?.dataset?.qty) || 0
+    });
+  });
+  return items;
+}
+
+/* ── PASSWORD CONFIRM ── */
+function openConfirmPwd(personId, personName, actionLabel, items, onConfirm) {
+  document.getElementById('cpwd-person-name').textContent  = personName || '-';
+  document.getElementById('cpwd-action-label').textContent = actionLabel || '';
+  document.getElementById('cpwd-input').value              = '';
+
+  // แสดงรายการวัสดุ
+  const listEl = document.getElementById('cpwd-items');
+  listEl.innerHTML = items.map(it =>
+    `<div class="item-row">
+      <i class='bx bx-chevron-right'></i>
+      <span>${it.name} × <strong>${it.qty}</strong> ${it.unit}</span>
+    </div>`
+  ).join('');
+
+  _pendingSubmit = { personId, onConfirm };
+  openM('m-confirm-pwd');
+  setTimeout(() => document.getElementById('cpwd-input')?.focus(), 300);
+}
+
+function confirmAndSubmit() {
+  const pwd = document.getElementById('cpwd-input').value;
+  if (!pwd) { toast('กรุณาระบุรหัสผ่าน', 'warn'); return; }
+  if (!_pendingSubmit) return;
+
+  const { personId, onConfirm } = _pendingSubmit;
+
+  showLoading('กำลังตรวจสอบรหัสผ่าน...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) {
+        closeM('m-confirm-pwd');
+        _pendingSubmit = null;
+        onConfirm();
+      } else {
+        toast(res?.message || 'รหัสผ่านไม่ถูกต้อง', 'err');
+        document.getElementById('cpwd-input').value = '';
+        document.getElementById('cpwd-input').focus();
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .verifyPassword(personId, pwd);
+}
+
+function togglePwdVis(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (!inp) return;
+  const isHidden = inp.type === 'password';
+  inp.type   = isHidden ? 'text' : 'password';
+  btn.innerHTML = isHidden
+    ? `<i class='bx bx-hide' style="font-size:18px;"></i>`
+    : `<i class='bx bx-show' style="font-size:18px;"></i>`;
+}
+
+/* ── SUBMIT REQUEST ── */
+function submitReqWithPwd() {
+  const personId = document.getElementById('req-p').value;
+  const repair   = document.getElementById('req-repair').value.trim();
+  const items    = collectReqItems();
+
+  if (!personId) { toast('กรุณาเลือกผู้เบิก', 'warn'); return; }
+  if (!items.length) { toast('กรุณาเพิ่มรายการวัสดุอย่างน้อย 1 รายการ', 'warn'); return; }
+
+  // ตรวจสอบจำนวนเกินสต็อก
+  const overStock = items.filter(it => it.qty > it.stock);
+  if (overStock.length) {
+    toast(`⚠️ "${overStock[0].name}" เบิกเกินสต็อก (มี ${overStock[0].stock} ${overStock[0].unit})`, 'warn');
+    return;
+  }
+
+  const person   = PERSONNEL_DATA.find(p => p.id == personId);
+  const personNm = person?.name || personId;
+
+  openConfirmPwd(
+    personId,
+    personNm,
+    `— ขอเบิกวัสดุ ${items.length} รายการ${repair ? ` (ใบแจ้งซ่อม: ${repair})` : ''}`,
+    items,
+    () => _doSubmitReq(personId, personNm, repair, items)
+  );
+}
+
+function _doSubmitReq(personId, personName, repair, items) {
+  showLoading('กำลังบันทึกรายการเบิก...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) {
+        toast(`✓ บันทึกรายการเบิกสำเร็จ ${items.length} รายการ`);
+        clearReq();
+        loadStock();
+        loadDashboard();
+        // ส่ง Telegram (ถ้าตั้งค่าไว้)
+        if (res.telegram?.sent) toast('📱 ส่ง Telegram แจ้งเตือนแล้ว', 'info');
+      } else {
+        toast(res?.message || 'บันทึกไม่สำเร็จ', 'err');
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .submitRequest({ personId, personName, repair, items });
+}
+
+/* ── SUBMIT RECEIVE ── */
+function submitRcvWithPwd() {
+  const personId = document.getElementById('rcv-p').value;
+  const items    = collectRcvItems();
+
+  if (!personId) { toast('กรุณาเลือกผู้รับ',  'warn'); return; }
+  if (!items.length) { toast('กรุณาเพิ่มรายการวัสดุอย่างน้อย 1 รายการ', 'warn'); return; }
+
+  const person   = PERSONNEL_DATA.find(p => p.id == personId);
+  const personNm = person?.name || personId;
+
+  openConfirmPwd(
+    personId,
+    personNm,
+    `— รับวัสดุเข้าคลัง ${items.length} รายการ`,
+    items,
+    () => _doSubmitRcv(personId, personNm, items)
+  );
+}
+
+function _doSubmitRcv(personId, personName, items) {
+  showLoading('กำลังบันทึกรายการรับเข้า...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) {
+        toast(`✓ บันทึกรายการรับเข้าสำเร็จ ${items.length} รายการ`);
+        clearRcv();
+        loadStock();
+        loadDashboard();
+        if (res.telegram?.sent) toast('📱 ส่ง Telegram แจ้งเตือนแล้ว', 'info');
+      } else {
+        toast(res?.message || 'บันทึกไม่สำเร็จ', 'err');
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .submitReceive({ personId, personName, items });
+}
+
+/* ── REPORT ── */
+function genReport() {
+  const rs   = document.getElementById('rs')?.value;
+  const re   = document.getElementById('re')?.value;
+  const type = document.getElementById('rt')?.value || 'all';
+
+  if (!rs || !re) { toast('กรุณาระบุช่วงวันที่', 'warn'); return; }
+  if (rs > re)    { toast('วันเริ่มต้นต้องไม่เกินวันสิ้นสุด', 'warn'); return; }
+
+  showLoading('กำลังสร้างรายงาน...');
+  google.script.run
+    .withSuccessHandler(data => {
+      hideLoading();
+      if (!data) { toast('ไม่พบข้อมูลในช่วงเวลานี้', 'warn'); return; }
+      renderReport(data);
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .getReport({ startDate: rs, endDate: re, type });
+}
+
+function renderReport(data) {
+  const fontTh = "'Sarabun', sans-serif";
+  const items  = data.items  || [];
+  const daily  = data.daily  || [];
+
+  // ── Table ──
+  const tb = document.getElementById('rpt-tb');
+  if (!items.length) {
+    tb.innerHTML = `<tr><td colspan="5">
+      <div class="empty-state">
+        <i class='bx bx-bar-chart'></i><p>ไม่พบข้อมูลในช่วงเวลาที่เลือก</p>
+      </div>
+    </td></tr>`;
+  } else {
+    tb.innerHTML = items.map((it, i) => `<tr>
+      <td style="color:var(--ink-3);font-size:12px;">${i + 1}</td>
+      <td><strong>${it.name || '-'}</strong></td>
+      <td><span style="color:var(--teal);font-weight:700;font-size:15px;">${it.total ?? 0}</span></td>
+      <td><span class="tag-unit">${it.unit || '-'}</span></td>
+      <td class="hide-mob">
+        <span class="badge badge-navy">${it.count ?? 0} ครั้ง</span>
+      </td>
+    </tr>`).join('');
+  }
+
+  // ── Chart 3: Bar — Top 10 ──
+  const ctx3 = document.getElementById('ch3')?.getContext('2d');
+  if (ctx3) {
+    if (_chartBar) _chartBar.destroy();
+    const top10 = items.slice(0, 10);
+    _chartBar = new Chart(ctx3, {
+      type: 'bar',
+      data: {
+        labels: top10.map(t => t.name),
+        datasets: [{
+          label: 'ปริมาณใช้',
+          data:  top10.map(t => t.total ?? 0),
+          backgroundColor: top10.map((_, i) => {
+            const clrs = ['#1d4ed8','#0ea5a0','#10b981','#f59e0b','#ef4444',
+                          '#7c3aed','#db2777','#0891b2','#65a30d','#d97706'];
+            return clrs[i % clrs.length];
+          }),
+          borderRadius: 6, borderSkipped: false
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { font: { family: fontTh } } },
+          x: { ticks: { font: { family: fontTh }, maxRotation: 30 } }
+        }
+      }
+    });
+  }
+
+  // ── Chart 4: Pie — สัดส่วน ──
+  const ctx4 = document.getElementById('ch4')?.getContext('2d');
+  if (ctx4) {
+    if (_chartPie) _chartPie.destroy();
+    const top5 = items.slice(0, 5);
+    const others = items.slice(5).reduce((s, x) => s + (x.total ?? 0), 0);
+    const lbls   = top5.map(t => t.name);
+    const vals   = top5.map(t => t.total ?? 0);
+    if (others > 0) { lbls.push('อื่นๆ'); vals.push(others); }
+
+    _chartPie = new Chart(ctx4, {
+      type: 'pie',
+      data: {
+        labels: lbls,
+        datasets: [{
+          data: vals,
+          backgroundColor: [
+            '#1d4ed8','#0ea5a0','#10b981','#f59e0b',
+            '#ef4444','#94a3b8'
+          ],
+          borderWidth: 2, borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: { font: { family: fontTh, size: 11 }, boxWidth: 14 }
+          }
+        }
+      }
+    });
+  }
+}
+
+/* ── SETTINGS ACTIONS ── */
+function saveTgSettings() {
+  const token  = document.getElementById('tg-token').value.trim();
+  const chatId = document.getElementById('tg-chatid').value.trim();
+  const onReq  = document.getElementById('tg-on-req').checked;
+  const onRcv  = document.getElementById('tg-on-rcv').checked;
+  const onLow  = document.getElementById('tg-on-low').checked;
+
+  if (!token || !chatId) {
+    toast('กรุณาระบุ Token และ Chat ID', 'warn'); return;
+  }
+  showLoading('กำลังบันทึก...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) toast('✓ บันทึกการตั้งค่า Telegram สำเร็จ');
+      else toast(res?.message || 'บันทึกไม่สำเร็จ', 'err');
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .saveTelegramConfig({ token, chatId, onReq, onRcv, onLow });
+}
+
+function testTelegram() {
+  const token  = document.getElementById('tg-token').value.trim();
+  const chatId = document.getElementById('tg-chatid').value.trim();
+  if (!token || !chatId) {
+    toast('กรุณาระบุ Token และ Chat ID ก่อนทดสอบ', 'warn'); return;
+  }
+  showLoading('กำลังส่งข้อความทดสอบ...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) toast('✓ ส่ง Telegram สำเร็จ! กรุณาตรวจสอบ Chat');
+      else toast('ส่งไม่สำเร็จ: ' + (res?.message || ''), 'err');
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .testTelegramNotify({ token, chatId });
+}
+
+function changeAdminPwd() {
+  const p1 = document.getElementById('adm-pwd1').value;
+  const p2 = document.getElementById('adm-pwd2').value;
+  if (!p1)       { toast('กรุณาระบุรหัสผ่านใหม่', 'warn'); return; }
+  if (p1 !== p2) { toast('รหัสผ่านไม่ตรงกัน', 'warn'); return; }
+  if (p1.length < 4) { toast('รหัสผ่านต้องมีอย่างน้อย 4 ตัวอักษร', 'warn'); return; }
+
+  showLoading('กำลังเปลี่ยนรหัสผ่าน...');
+  google.script.run
+    .withSuccessHandler(res => {
+      hideLoading();
+      if (res?.success) {
+        toast('✓ เปลี่ยนรหัสผ่านสำเร็จ');
+        document.getElementById('adm-pwd1').value = '';
+        document.getElementById('adm-pwd2').value = '';
+      } else {
+        toast(res?.message || 'เปลี่ยนรหัสผ่านไม่สำเร็จ', 'err');
+      }
+    })
+    .withFailureHandler(e => {
+      hideLoading();
+      toast('เกิดข้อผิดพลาด: ' + e.message, 'err');
+    })
+    .changePassword({ userId: CURRENT_USER?.id, newPwd: p1 });
+}
+
+/* ── GLOBAL SCANNER CALLBACKS ── */
+// scanner.js จะเรียก onScanSuccess(item) เมื่อสแกนได้
+window.onScanSuccess = function(item) {
+  const mode = window._scanMode || 'stock';
+  if (mode === 'stock') {
+    // แสดง QR detail
+    showQRDetail(item.code, item.name, item.unit, item.qty, item.status, item.qrUrl);
+    closeGlobalScanner();
+  } else if (mode === 'req') {
+    addReqRow(item);
+    // ไม่ปิด scanner — ให้สแกนต่อได้
+    toast(`✓ เพิ่ม "${item.name}" ในใบเบิกแล้ว`, 'ok');
+  } else if (mode === 'rcv') {
+    addRcvRow(item);
+    toast(`✓ เพิ่ม "${item.name}" ในใบรับแล้ว`, 'ok');
+  }
+};
+
+window.onScanNotFound = function(query) {
+  toast(`⚠️ ไม่พบวัสดุที่ตรงกับ "${query}"`, 'warn');
+};
+
+/* ── KEYBOARD SHORTCUTS ── */
+document.addEventListener('keydown', e => {
+  if (!CURRENT_USER) return;
+  // ESC ปิด modal / scanner
+  if (e.key === 'Escape') {
+    if (document.getElementById('scan-overlay').classList.contains('show')) {
+      closeGlobalScanner(); return;
+    }
+    const openModal = document.querySelector('.modal-wrap.open');
+    if (openModal) { closeM(openModal.id); return; }
+  }
+});
+
+/* ── WINDOW RESIZE ── */
+window.addEventListener('resize', () => {
+  const logoutMob = document.getElementById('logout-btn-mob');
+  if (logoutMob && CURRENT_USER) {
+    logoutMob.style.display = window.innerWidth < 768 ? 'flex' : 'none';
+  }
+});
+
+/* ── LOGIN SCREEN ENTER KEY ── */
+document.getElementById('login-pwd')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+</script>
+</body>
+</html>
+
+
+
+
