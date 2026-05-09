@@ -23,9 +23,80 @@
 
   <!-- Barcode generator -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-
   <!-- App config (ต้องตั้งค่า API_URL) -->
   <!-- <script src="config.js"></script> -->
+ <script>
+  // 1. Config
+  window.APP_CONFIG = {
+    API_URL: 'https://script.google.com/macros/s/AKfycbzg3Pa6oA8SqQi9_DiRwza6d0U2i2cHf1UZYGtq49PQlllneSPkATOLtPX3LkDt0bxc/exec',
+    APP_NAME: 'ระบบเบิกจ่ายวัสดุ',
+    VERSION:  '1.0',
+  };
+  </script>
+
+  <script>
+  // 2. API layer — ต้องโหลดก่อน DOMContentLoaded
+  function getAPIUrl() {
+    return localStorage.getItem('gas_api_url') || window.APP_CONFIG?.API_URL || '';
+  }
+
+  async function callAPI(action, payload = {}) {
+    const url = getAPIUrl();
+    if (!url) throw new Error('ยังไม่ได้ตั้งค่า API URL');
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body:    JSON.stringify({ action, payload })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  }
+
+  async function checkAPIHealth() {
+    const t0 = Date.now();
+    try {
+      const url = getAPIUrl();
+      if (!url) return { ok: false, error: 'ยังไม่ได้ตั้งค่า API URL' };
+      const res  = await fetch(`${url}?action=ping`, { method: 'GET' });
+      const data = await res.json();
+      return { ok: true, latency: Date.now() - t0, data };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  }
+
+  // google.script.run emulator
+  window.google = {
+    script: {
+      run: new Proxy({}, {
+        get(_, action) {
+          let _successCb = null;
+          let _failCb    = null;
+
+          function execute(p) {
+            callAPI(action, p || {})
+              .then(data => { if (_successCb) _successCb(data); })
+              .catch(err  => { if (_failCb) _failCb(err); else console.error('[API]', action, err); });
+          }
+
+          const runner = {
+            withSuccessHandler(cb) { _successCb = cb; return runner; },
+            withFailureHandler(cb) { _failCb    = cb; return runner; }
+          };
+
+          return new Proxy(runner, {
+            get(target, prop) {
+              if (prop in target) return target[prop];
+              return (p) => { execute(p); return runner; };
+            },
+            apply(_, __, args) { execute(args[0]); return runner; }
+          });
+        }
+      })
+    }
+  };
+  </script>
+
   <style>
     /* ===== CSS เดิมทั้งหมด คัดลอกมาจาก Apps Script ===== */
     :root {
@@ -3565,208 +3636,6 @@ window.addEventListener('resize', () => {
 document.getElementById('login-pwd')?.addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
-
-</script>
-
-<!-- 1. config (ย้ายมาจาก config.js) -->
-<script>
-  // ตั้งค่า API URL ที่นี่
-window.APP_CONFIG = {
-  // วาง Google Apps Script Web App URL ที่นี่
-  API_URL: 'https://script.google.com/macros/s/AKfycbxb8agBzVDjaPYZ3P6IVCQ9RTq5oa3ElrT95ScMnfW6N1MiqqOC32r2aP31wyh7Nfvk/exec',
-  
-  APP_NAME: 'ระบบเบิกจ่ายวัสดุ',
-  VERSION:  '1.0',
-};
-</script>
-
-
-<!-- 2. api.js (วางโค้ดทั้งหมดจาก api.js ที่นี่) -->
-<script>
- /* ════════════════════════════════════════
-   api.js — REST API client for GitHub Pages
-   เรียก Google Apps Script Web App ผ่าน fetch()
-════════════════════════════════════════ */
-
-// ดึง API URL จาก config.js หรือ localStorage
-function getAPIUrl() {
-  return localStorage.getItem('gas_api_url')
-      || window.APP_CONFIG?.API_URL
-      || '';
-}
-
-// ── Health Check ──
-async function checkAPIHealth() {
-  const t0 = Date.now();
-  try {
-    const url = getAPIUrl();
-    if (!url) return { ok: false, error: 'ยังไม่ได้ตั้งค่า API URL' };
-    const res = await fetch(`${url}?action=ping`, { method: 'GET' });
-    const data = await res.json();
-    return { ok: true, latency: Date.now() - t0, data };
-  } catch (e) {
-    return { ok: false, error: e.message };
-  }
-}
-
-// ── Core API caller ──
-async function callAPI(action, payload = {}) {
-  const url = getAPIUrl();
-  if (!url) throw new Error('ยังไม่ได้ตั้งค่า API URL');
-
-  try {
-    const res = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body:    JSON.stringify({ action, payload })  // ← เปลี่ยนตรงนี้
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    console.error(`[API] ${action} failed:`, e);
-    throw e;
-  }
-}
-
-// ── สร้าง google.script.run emulator ──
-// ให้ code เดิมทำงานได้โดยไม่ต้องแก้ทุกที่
-window.google = {
-  script: {
-    run: new Proxy({}, {
-      get(_, action) {
-        // เมื่อเรียก google.script.run.someAction
-        // return runner object ที่มีทั้ง withSuccessHandler, withFailureHandler
-        // และสามารถถูกเรียกเป็น function ได้
-
-        let _successCb = null;
-        let _failCb = null;
-
-        function execute(payload) {
-          callAPI(action, payload || {})
-            .then(data => { if (_successCb) _successCb(data); })
-            .catch(err => {
-              if (_failCb) _failCb(err);
-              else console.error('[API Error]', action, err);
-            });
-        }
-
-        const runner = {
-          withSuccessHandler(cb) {
-            _successCb = cb;
-            return runner;
-          },
-          withFailureHandler(cb) {
-            _failCb = cb;
-            return runner;
-          }
-        };
-
-        // เพิ่ม method ชื่อเดียวกับ action และทุก method อื่นๆ ที่อาจถูกเรียก
-        // ผ่าน Proxy
-        return new Proxy(runner, {
-          get(target, prop) {
-            if (prop in target) return target[prop];
-            // ถ้าเรียก method ที่ไม่มีใน runner = เรียก action อื่น หรือ execute
-            return (payload) => {
-              execute(payload);
-              return runner;
-            };
-          },
-          apply(target, thisArg, args) {
-            execute(args[0]);
-            return runner;
-          }
-        });
-      }
-    })
-  }
-};
-/**
- * แปลง positional arguments → params object
- * ให้ตรงกับที่ Apps Script ต้องการ
- */
-function _argsToParams(action, args) {
-  const map = {
-    verifyLogin:          ([userId, password])    => ({ userId, password }),
-    verifyPersonPassword: ([userId, password])    => ({ userId, password }),
-    savePersonnel:        ([personData])           => ({ personData }),
-    deletePersonnel:      ([rowIndex])             => ({ rowIndex }),
-    changeAdminPassword:  ([newPwd])               => ({ newPwd }),
-    addStockItem:         ([item])                 => ({ item }),
-    submitRequest:        ([formData])             => ({ formData }),
-    submitReceive:        ([formData])             => ({ formData }),
-    getHistory:           ([filters])              => ({ filters: filters || {} }),
-    getReport:            ([startDate, endDate, type]) => ({ startDate, endDate, type }),
-    saveTelegramConfig:   ([cfg])                  => ({ cfg }),
-    // ฟังก์ชันที่ไม่มี params
-    getPersonnelData:     ()                       => ({}),
-    getStockData:         ()                       => ({}),
-    getDashboardStats:    ()                       => ({}),
-    getTelegramConfig:    ()                       => ({}),
-    testTelegramMessage:  ()                       => ({}),
-    initializeSheets:     ()                       => ({}),
-  };
-
-  const converter = map[action];
-  if (converter) return converter(args);
-
-  // fallback: ถ้าไม่รู้จัก action ส่ง args ทั้งหมดเป็น array
-  console.warn(`[API] Unknown action "${action}" — sending raw args`);
-  return { args };
-}
-
-/* ─────────────────────────────────────────
-   CACHE LAYER (optional)
-   Cache ข้อมูลที่ไม่เปลี่ยนบ่อย เช่น stock, personnel
-   เพื่อลด API calls
-───────────────────────────────────────── */
-const _cache = new Map();
-const CACHE_TTL = {
-  getStockData:      30_000,  // 30 วินาที
-  getPersonnelData:  60_000,  // 1 นาที
-  getDashboardStats: 20_000,  // 20 วินาที
-};
-
-/**
- * callAPI พร้อม cache
- * ใช้แทน callAPI สำหรับ read-only endpoints
- */
-async function callAPICached(action, params = {}) {
-  const ttl = CACHE_TTL[action];
-  if (!ttl) return callAPI(action, params); // ไม่ cache write operations
-
-  const key = action + JSON.stringify(params);
-  const cached = _cache.get(key);
-  if (cached && Date.now() - cached.ts < ttl) {
-    return cached.data;
-  }
-
-  const data = await callAPI(action, params);
-  _cache.set(key, { data, ts: Date.now() });
-  return data;
-}
-
-/** ล้าง cache ทั้งหมด (เรียกหลัง write operations) */
-function clearAPICache() {
-  _cache.clear();
-}
-
-/* ─────────────────────────────────────────
-   HEALTH CHECK
-   ตรวจสอบว่า API ทำงานได้หรือไม่
-───────────────────────────────────────── */
-async function checkAPIHealth() {
-  try {
-    const start = Date.now();
-    const res   = await callAPI('initializeSheets', {});
-    const ms    = Date.now() - start;
-    console.log(`[API] Health OK — ${ms}ms`, res);
-    return { ok: true, latency: ms };
-  } catch (e) {
-    console.error('[API] Health FAIL', e);
-    return { ok: false, error: e.message };
-  }
-}
 
 </script>
 
